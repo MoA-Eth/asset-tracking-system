@@ -1,90 +1,110 @@
-# Ministry of Agriculture — Asset Tracking System (MoA-ATS)
-## Session Handover & State Snapshot (2026-11-06)
+# Ministry of Agriculture — Multi-Project Handover & State Snapshot
+## Session Handover & State Snapshot (Updated: 2026-11-10 16:35 EAT)
 
-This document preserves the complete technical and operational context of the inventory duplicate detection and audit resolution work, so you can immediately continue on any other machine.
-
----
-
-### **1. Key System & Server Details**
-* **Production Server**: `10.10.20.155` (Host name: `moaasset`, Domain: `ams.moa.gov.et`)
-* **SSH User**: `assetmgtp@10.10.20.155`
-* **App Directory**: `/opt/moa-ams`
-* **Live Containers**:
-  * `moa-ams-nginx-1` (Web App PWA + HTTPS, ports 80/443)
-  * `moa-ams-backend-1` (Node.js API, port 3000)
-  * `moa-ams-db-1` (PostgreSQL 16, port 5432)
-* **API Health Check**: `https://localhost/api/health` or `https://10.10.20.155/api/health`
-* **Pre-Deploy Database Backup**: `/opt/moa-ams/backups/pre-deploy-2026-11-06_165324.dump`
-* **Git Repository**: `https://github.com/MoA-Eth/asset-tracking-system.git` (Branch: `main`)
-* **Latest Commit Live**: `4ed8158` (`fix(assets): broaden duplicate detection to all active items with price matching and bidirectional navigation`)
+This document preserves the complete technical, architectural, and operational context across both the **Asset Tracking System (MoA-ATS)** and the **Procurement Tracking System**, so you can immediately continue your work on another laptop at home.
 
 ---
 
-### **2. What Was Built & Deployed Today**
+### **1. Git & Deployment Status**
 
-1. **Large Bulk Import Fix (`12f9422`)**:
-   * Increased Express JSON body parser limit to `10mb` (`express.json({ limit: '10mb' })`) to accommodate multi-page Excel count uploads.
+Both repositories on this workstation are synchronized with `origin/main`:
 
-2. **Duplicate Detection & Interactive Filter (`12988f4`, `6df0706`, `4ed8158`)**:
-   * **Filter Pill in Status Bar**: Clickable pill `[⚠️ Suspected Duplicates (40)]` in `AssetsPage.tsx` filtering all 71 related records (40 duplicate suspects + 31 pre-existing originals).
-   * **Table Row Match Badges**:
-     * Suspect items show: `⚠️ Possible Duplicate` and `↳ Matches original: [MOA-...] (Item Name) on Model 19 #... [STATUS]`.
-     * Pre-existing originals show: `Original Asset` and `↳ Duplicated by: [MOA-...] on Model 19 #...`.
-     * Clicking either code pill instantly opens the corresponding item in the side drawer.
-   * **Side-by-Side Comparison Drawer**: In `AssetRecord.tsx`, opening any duplicate shows an amber/blue comparison banner showing both records side-by-side with an `[👁️ Inspect Pre-Existing Asset]` button.
-   * **Clean Removal Toggle**: Setting `ENABLE_DUPLICATE_DETECTION = false` in `frontend/src/utils/duplicate-detection.ts` cleanly disables all duplicate UI helpers anytime.
+* **Asset Tracking System (`asset-tracking-system`)**:
+  * **Repository**: `https://github.com/MoA-Eth/asset-tracking-system.git` (Branch: `main`)
+  * **Latest Live Commit**: `409d500` (`feat(assets): add temporary duplicate audit tool for Super Admin`)
+  * **Author**: `Eyob Temesgen <eyob.temesgen@moa.gov.et>`
+  * **Working tree**: Clean, 0 uncommitted changes.
 
-3. **Super Admin Deletion Actions (`49c9a0d`)**:
-   * **Row Action Menu (`...`)**: Super Admin can permanently delete:
-     * `Delete Item (Super Admin)` (`DELETE /api/items/:id`)
-     * `Delete Entire Model 19 #... (Super Admin)` (`DELETE /api/items/slip/:slipNumber`)
-   * Fully cleans up item balances, transaction approvals, and logs audit events (`SUPER_ADMIN_DELETE_ITEM` / `SUPER_ADMIN_DELETE_SLIP`).
-   * Confirmation modals prevent accidental clicks.
+* **Procurement Tracking System (`procurement-tracking-system`)**:
+  * **Repository**: `https://github.com/MoA-Eth/procurement-tracking-system.git` (Branch: `main`)
+  * **Latest Live Commit**: `0fa95cb` (`perf(frontend): optimize production bundle and code splitting`)
+  * **Author**: `Eyob Temesgen <eyob.temesgen@moa.gov.et>`
+  * **Working tree**: Clean.
 
 ---
 
-### **3. Audit Findings & Critical Alerts**
+### **2. Work Completed Today (2026-11-10)**
 
-1. **Today's Imported Items**: 849 items imported across 19 count batches on 2026-11-06. All are currently in **`PENDING_STOCK_IN`**.
-   * ⚠️ **Do NOT approve** these batches yet until duplicate items are resolved.
-2. **Zero-Price Items (52%)**: **445 items out of 849** have `unitCostETB = 0.00` because physical count sheets lacked purchase invoices. Storekeepers must check if these match existing assets with recorded prices.
-3. **Full 100% Duplicate Vouchers**:
-   * **`#0000307` vs `#0000422`**: Identical 27 items totaling `191,090.00 ETB` each. One of these slips is a complete duplicate.
-   * **`#0000052` vs `PENDING-1792587705527`**: Identical 8 PVC pipe items totaling ~`55,000.00 ETB`.
-   * *Resolution*: Use Super Admin **`Delete Entire Model 19`** to delete the duplicated voucher in one click.
-4. **Items Counted that Were Previously Disposed**:
-   * Several guest chairs (`6,910.67 ETB`), swivel chairs (`8,857.47 ETB`), and tablets (`89,700.00 ETB`) were previously marked **`DISPOSED`** in the system, but re-counted during physical count. Committee must decide whether to delete the count entry or keep them.
+#### A. Procurement Tracking System
+* **Production Bundle Optimization (`0fa95cb`)**:
+  * Reconfigured Rollup chunks: vendor libraries (React, Lucide icons, date-fns, PDF/Excel generators) chunked cleanly.
+  * Added `vite-plugin-compression2` to pre-generate `.gz` and `.br` assets for lightning-fast loading over MoA intranet and low-bandwidth connections.
+  * Reduced chunk sizes from >1.6MB down to lightweight sub-500kB bundles with zero TypeScript or Vitest test failures.
+
+#### B. Asset Tracking System — Auth Pages Design Unification
+* **Unified Auth Layout (`152cca8`)**:
+  * Restyled `LoginPage.tsx`, `ChangePasswordPage.tsx`, and `CreatePasswordPage.tsx` to match the exact aesthetic of the Procurement system.
+  * Clean white floating auth card with rounded-2xl geometry, subtle border, and green primary accent (`#16a34a` / `#15803d`).
+  * Styled with a subtle dot-grid backdrop pattern, official Ministry Amharic/English typography, clear input icons, password show/hide toggles, and accessible focus rings.
+
+#### C. Asset Tracking System — Logo Fix
+* **Logo Asset Separation (`ca2d113`)**:
+  * Restored the official 32-bit transparent circular emblem (`moa-logo.png`, 150×148) for the Desktop Sidebar, Top Header, and statutory printable vouchers (Model 19, Model 20, Model 21, Model 22).
+  * Retained the high-resolution rectangular institutional lockup (`moa-full-logo.png`, 1536×1024) specifically for the standalone authentication cards.
+
+#### D. Asset Tracking System — Dedicated Duplicate Audit Screen
+* **Dedicated Diagnostic Tool (`DuplicateAuditPage.tsx`, `409d500`)**:
+  * Created a temporary, separate screen accessible from the **Assets** page status bar (`[ ⚡ Audit Duplicates ]`) to safely cross-check newly imported Excel records currently sitting in **"Receive Pending" (`PENDING_STOCK_IN`)** against existing store inventory (`AVAILABLE`, `ISSUED`, `DISPOSED`).
+  * **Restricted to Super Admin Only**:
+    * Entry button on the Assets filter bar is guarded by `user?.role === UserRole.SUPER_ADMIN`.
+    * Page-level security guard prevents unauthorized access from other roles and redirects back to Assets.
+  * **Multi-Vector Conflict Detection**:
+    1. *Exact Serial Match*: Flags matching non-blank serial numbers against registered store inventory.
+    2. *Model 19 Voucher Collision*: Flags if a statutory voucher number is already registered in store inventory.
+    3. *Store & Description Overlap*: Flags identical normalized item names targeting the same store location.
+    4. *Disposed Asset Collision*: Warns if an incoming item matches a previously written-off/disposed asset.
+    5. *Intra-Batch Excel Duplicates*: Detects duplicate lines inside the imported pending batch itself (e.g. repeated lines in the Excel sheet or if the file was imported twice).
+  * **Interactive Audit & User Consent**:
+    * **Detection Reason**: Clear plain-English sentence explaining why the record was flagged.
+    * **Duplicated Attributes Strip**: Visual badge chips highlighting every overlapping field (Serial, Voucher #, Description, Store, Unit Cost, IFMIS Tag).
+    * **System Suggestion Bar**: Recommends deleting the newly imported pending row while keeping the registered store inventory record safe.
+    * **Side-by-Side Comparison Cards**: Left card shows the *Pending Import (Suggested for Deletion)* with red delete action; Right card shows the *Preserved Store Record (Kept Safe)* with green protection badges.
+    * **Confirmation Modal**: Detailed confirmation dialog displaying the audit summary before performing `DELETE /api/items/:id`.
+    * **Batch Deletion**: Select multiple or all conflicts to delete redundant pending lines in one click.
+    * **Dismiss Warning**: Allows dismissing false alarms for the active session.
+  * **Clean Removability**:
+    * When duplicate cleanup is finished, the screen can be deleted concisely without side effects (only touches `DuplicateAuditPage.tsx`, `App.tsx`, and `AssetsPage.tsx`). Does not pollute backend role policy.
 
 ---
 
-### **4. Generated Excel Reports**
-All files are saved in the project repository at `exports/` and backed up on the production server at `assetmgtp@10.10.20.155:/home/assetmgtp/inventory-audit-exports/`:
+### **3. Local Running Environment & Ports**
 
-1. **`exports/Today_vs_Existing_Name_And_Price_Overlaps.xlsx`**:
-   * **Tab 1 (`Exact Name & Same Price`)**: 17 rows with exact description and exact unit price match.
-   * **Tab 2 (`Same Name - Different Price`)**: 169 rows with exact description but different unit costs (different procurement batches).
-2. **`exports/3_MoA_Inventory_Audit_Master_Comparison_2026-11-06.xlsx`**:
-   * Complete 3-tab master audit workbook (Side-by-Side compare, full pre-existing list of 683 items, and full today imported list of 849 items).
-3. **`exports/1_Pre_Existing_Assets_Before_Today.xlsx`**: Full raw dataset of 683 pre-existing records before Nov 6, 2026.
-4. **`exports/2_Imported_Physical_Count_Today.xlsx`**: Full raw dataset of 849 today's imported records with duplicate flags.
+When running locally on any developer laptop:
 
----
-
-### **5. CI/CD & Pipeline Status**
-- **Test suite**: `AssetsPage.test.tsx` (128/128 tests passing) and `duplicate-detection.test.ts` (6/6 tests passing).
-- **Split Units Fix**: Excluded parent-child batches (`parentItemId` / `itemCode` prefix) and sibling split units from duplicate suspect matching.
+| Service | Working Directory | Command | URL / Port |
+| :--- | :--- | :--- | :--- |
+| **Asset Tracking Backend** | `asset tracking/asset-tracking-system` | `npm run dev:backend` | `http://localhost:5000` |
+| **Asset Tracking Frontend** | `asset tracking/asset-tracking-system` | `npm run dev:frontend` | `http://localhost:3000` |
+| **Asset Tracking Fullstack** | `asset tracking/asset-tracking-system` | `npm run dev` | Frontend: `3000`, Backend: `5000` |
+| **Asset Tracking Database** | Docker | `docker compose up -d` | PostgreSQL 16 on `localhost:5432` |
+| **Procurement Backend** | `procurement-tracking-system` | `npm run dev:backend` | `http://localhost:4000` |
+| **Procurement Frontend** | `procurement-tracking-system` | `npm run dev:frontend` | `http://localhost:5173` |
 
 ---
 
-### **6. How to Continue on a New Machine**
+### **4. How to Resume on Your Other Laptop at Home**
 
-1. **Clone or Pull the Repository**:
+1. **Pull the Latest Changes**:
    ```bash
-   git clone https://github.com/MoA-Eth/asset-tracking-system.git
-   # OR if already cloned:
+   cd "C:\Users\<YourUser>\Desktop\MOA Projects\asset tracking\asset-tracking-system"
+   git pull origin main
+
+   cd "C:\Users\<YourUser>\Desktop\MOA Projects\procurement-tracking-system"
    git pull origin main
    ```
-2. **Open the Project in Antigravity** on the new machine.
-3. **Resume Prompt to Give to Antigravity**:
-   > *"I am continuing the inventory duplicate detection and audit task. Please read `CONTEXT_HANDOVER.md` to see the complete project status, deployed commits, and audit findings, and let me know our next steps."*
 
+2. **Verify Dependencies & Start the App**:
+   ```bash
+   # In asset-tracking-system:
+   npm run dev
+   ```
+   Open `http://localhost:3000` in your browser.
+
+3. **Log in as Super Admin**:
+   * Default super admin credential: `admin` / your admin password.
+   * Go to **Assets** tab.
+   * Click the **`[ ⚡ Audit Duplicates ]`** button on the right side of the filter tab strip.
+   * Review flagged duplicates between Receive Pending and registered store inventory, inspect the duplicated attributes chips, and click **`Confirm & Delete from Receive Pending`** for records you want to clean up.
+
+4. **Resume Prompt to Give to Antigravity on Your Home Laptop**:
+   > *"I have pulled the latest changes on `main` (`409d500`). Please read `CONTEXT_HANDOVER.md` to see the current status of the duplicate audit tool and our active tasks. Let me know what we should work on next."*
