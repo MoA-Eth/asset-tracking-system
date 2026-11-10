@@ -11,7 +11,7 @@ Both repositories on this workstation are synchronized with `origin/main`:
 
 * **Asset Tracking System (`asset-tracking-system`)**:
   * **Repository**: `https://github.com/MoA-Eth/asset-tracking-system.git` (Branch: `main`)
-  * **Latest Live Commit**: `409d500` (`feat(assets): add temporary duplicate audit tool for Super Admin`)
+  * **Latest Live Commit**: `9828972` (`refactor(assets): streamline and declutter Duplicate Audit UI`)
   * **Author**: `Eyob Temesgen <eyob.temesgen@moa.gov.et>`
   * **Working tree**: Clean, 0 uncommitted changes.
 
@@ -107,4 +107,4 @@ When running locally on any developer laptop:
    * Review flagged duplicates between Receive Pending and registered store inventory, inspect the duplicated attributes chips, and click **`Confirm & Delete from Receive Pending`** for records you want to clean up.
 
 4. **Resume Prompt to Give to Antigravity on Your Home Laptop**:
-   > *"I have pulled the latest changes on `main` (`409d500`). Please read `CONTEXT_HANDOVER.md` to see the current status of the duplicate audit tool and our active tasks. Let me know what we should work on next."*
+   > *"I have pulled the latest changes on `main` (`9828972`). Please read `CONTEXT_HANDOVER.md` to see the current status of the duplicate audit tool and our active tasks. Let me know what we should work on next."*
