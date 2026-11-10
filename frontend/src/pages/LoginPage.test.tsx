@@ -43,16 +43,18 @@ beforeEach(() => {
 });
 
 describe('LoginPage', () => {
-  it('renders login form with authentic MoA branding, inputs, and reset password link', () => {
+  it('renders login form with authentic MoA branding, inputs, and forgot password link', () => {
     render(<LoginPage />);
 
     expect(screen.getByTestId('moa-logo')).toBeInTheDocument();
-    expect(screen.getByText('Internal Asset Tracking Portal')).toBeInTheDocument();
-    expect(screen.getByText('Ministry of Agriculture (FDRE)')).toBeInTheDocument();
-    expect(screen.queryByText('Sign in with your credentials')).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/name@moa.gov.et/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Login/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset password' })).toBeInTheDocument();
+    expect(screen.getByText('MoA Asset Tracking System')).toBeInTheDocument();
+    expect(screen.getByText('Internal Store-Level Tracking, Inventory and Audit')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Enter your username or email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Enter your password/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sign In/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Forgot Password\?/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Technical Support/i })).toBeInTheDocument();
+    expect(screen.getByText(/© 2026 Ministry of Agriculture \(MoA\) Asset Tracking System/i)).toBeInTheDocument();
   });
 
   it('submits login credentials successfully', async () => {
@@ -61,9 +63,9 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    const idInput = screen.getByPlaceholderText(/name@moa.gov.et/i);
-    const pwInput = screen.getByPlaceholderText('••••••••••••');
-    const submitBtn = screen.getByRole('button', { name: /Login/i });
+    const idInput = screen.getByPlaceholderText(/Enter your username or email/i);
+    const pwInput = screen.getByPlaceholderText(/Enter your password/i);
+    const submitBtn = screen.getByRole('button', { name: /Sign In/i });
 
     await user.type(idInput, 'admin@moa.gov.et');
     await user.type(pwInput, 'Secret1234');
@@ -81,7 +83,7 @@ describe('LoginPage', () => {
 
     render(<LoginPage />);
 
-    const forgotBtn = screen.getByRole('button', { name: 'Reset password' });
+    const forgotBtn = screen.getByRole('button', { name: /Forgot Password\?/i });
     await user.click(forgotBtn);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();

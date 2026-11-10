@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { MoaLogo } from '../components/ui/MoaLogo';
-import { Lock, Eye, EyeOff, CheckCircle2, RefreshCw, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2, RefreshCw, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { ROLE_LABELS } from './settings/UserAccessModals';
 import { UserRole } from '../types/asset-management';
 
@@ -88,32 +88,36 @@ export const CreatePasswordPage: React.FC = () => {
   };
 
   return (
-    <div
-      className="min-h-screen w-full overflow-y-auto flex flex-col items-center justify-center p-4 selection:bg-amber-400 selection:text-emerald-950 font-sans"
-      style={{
-        background: 'linear-gradient(168deg, #0B6B3A 0%, #086034 50%, #06542D 100%)',
-      }}
-    >
-      <div className="w-full max-w-[440px] rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-white/20">
-        <div className="flex flex-col items-center text-center">
-          <MoaLogo className="w-16 h-16" />
-          <h1 className="mt-4 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+    <main className="auth-shell">
+      <section
+        className="auth-card auth-card-flow"
+        aria-labelledby="create-password-title"
+      >
+        <div className="flex justify-center">
+          <MoaLogo size="md" />
+        </div>
+
+        <div className="mt-3 text-center">
+          <h1
+            id="create-password-title"
+            className="auth-flow-title font-semibold tracking-tight text-[#00843D]"
+          >
             Account Activation
           </h1>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="auth-flow-subtitle font-medium text-[#58709a]">
             Ministry of Agriculture · Fixed Asset Tracking System
           </p>
         </div>
 
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="h-7 w-7 text-emerald-600 animate-spin" />
-            <p className="text-xs text-slate-500 font-medium">Verifying invitation link…</p>
+            <RefreshCw className="h-7 w-7 text-[#00843D] animate-spin" />
+            <p className="text-sm text-[#58709a] font-medium">Verifying invitation link…</p>
           </div>
         ) : verifyingError ? (
           <div className="mt-6 space-y-4">
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs sm:text-sm text-rose-800 flex items-start gap-2.5">
+              <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-rose-900">Invitation Expired or Invalid</p>
                 <p className="mt-0.5 leading-relaxed">{verifyingError}</p>
@@ -122,32 +126,33 @@ export const CreatePasswordPage: React.FC = () => {
             <button
               type="button"
               onClick={toLogin}
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+              className="auth-primary-button"
             >
-              Back to Login
+              Back to Sign In
             </button>
           </div>
         ) : submitSuccess ? (
           <div className="mt-6 space-y-4 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <CheckCircle2 className="h-6 w-6" />
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Password Created!</h2>
-              <p className="mt-1 text-xs text-slate-600">
+              <h2 className="text-lg font-bold text-slate-900">Password Created!</h2>
+              <p className="mt-1 text-xs sm:text-sm text-slate-600">
                 Your account is now activated. Redirecting you to sign in…
               </p>
             </div>
             <button
               type="button"
               onClick={toLogin}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#00843D] hover:underline cursor-pointer"
             >
-              Proceed to Sign In <ArrowRight className="h-3.5 w-3.5" />
+              <span>Proceed to Sign In</span>
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} className="auth-flow-form space-y-4">
             {employeeInfo && (
               <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3.5 text-xs">
                 <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">Invited User</p>
@@ -163,81 +168,112 @@ export const CreatePasswordPage: React.FC = () => {
               </div>
             )}
 
+            <div className="auth-password-policy rounded-xl bg-emerald-50 p-4 text-xs sm:text-sm text-emerald-900 border border-emerald-100">
+              <p className="font-semibold text-emerald-950">Password Requirements:</p>
+              <ul className="mt-2 space-y-1">
+                <li className="flex items-center gap-2">
+                  <Check size={16} className={`shrink-0 ${hasMinLength ? 'text-emerald-700' : 'text-slate-400'}`} />
+                  <span className={hasMinLength ? 'text-emerald-900 font-medium' : 'text-slate-600'}>
+                    At least 8 characters
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check size={16} className={`shrink-0 ${hasLetterAndNumber ? 'text-emerald-700' : 'text-slate-400'}`} />
+                  <span className={hasLetterAndNumber ? 'text-emerald-900 font-medium' : 'text-slate-600'}>
+                    At least one letter and one number
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {submitError && (
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs sm:text-sm font-medium text-rose-700"
+              >
+                {submitError}
+              </div>
+            )}
+
             <div>
-              <label htmlFor="create-new-password" className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="create-new-pw" className="auth-label">
                 New Password
               </label>
-              <div className="relative">
+              <div className="auth-input-wrap">
+                <Lock aria-hidden="true" className="auth-input-icon" />
                 <input
-                  id="create-new-password"
+                  id="create-new-pw"
                   type={showNew ? 'text' : 'password'}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter secure password"
-                  className="w-full rounded-xl border border-slate-300 py-2.5 pl-3 pr-10 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  placeholder="Min. 8 characters"
+                  autoFocus
+                  className="auth-input auth-input-with-trailing-action"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  onClick={() => setShowNew((prev) => !prev)}
                   aria-label={showNew ? 'Hide password' : 'Show password'}
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#8da3c4] hover:text-[#00843D] cursor-pointer"
                 >
-                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
             <div>
-              <label htmlFor="create-confirm-password" className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="create-confirm-pw" className="auth-label">
                 Confirm Password
               </label>
-              <input
-                id="create-confirm-password"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-type new password"
-                className="w-full rounded-xl border border-slate-300 py-2.5 px-3 text-xs focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
-              />
+              <div className="auth-input-wrap">
+                <Lock aria-hidden="true" className="auth-input-icon" />
+                <input
+                  id="create-confirm-pw"
+                  type={showNew ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-type new password"
+                  className="auth-input"
+                />
+              </div>
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <p className="mt-1.5 text-xs text-rose-600">Passwords do not match</p>
+              )}
             </div>
-
-            {/* Password requirements */}
-            <div className="space-y-1.5 rounded-xl bg-slate-50 border border-slate-200/80 p-3 text-[11px]">
-              <p className="font-semibold text-slate-600 mb-1">Requirements:</p>
-              <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
-                <CheckCircle2 className={`h-3.5 w-3.5 ${hasMinLength ? 'text-emerald-600' : 'text-slate-300'}`} />
-                <span>At least 8 characters long</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${hasLetterAndNumber ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
-                <CheckCircle2 className={`h-3.5 w-3.5 ${hasLetterAndNumber ? 'text-emerald-600' : 'text-slate-300'}`} />
-                <span>At least one letter and one number</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${passwordsMatch ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
-                <CheckCircle2 className={`h-3.5 w-3.5 ${passwordsMatch ? 'text-emerald-600' : 'text-slate-300'}`} />
-                <span>Passwords match</span>
-              </div>
-            </div>
-
-            {submitError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                <span>{submitError}</span>
-              </div>
-            )}
 
             <button
               type="submit"
               disabled={submitting || !isFormValid}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+              className="auth-primary-button"
             >
-              {submitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              Activate Account & Set Password
+              {submitting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Activating Account…</span>
+                </>
+              ) : (
+                'Activate Account & Set Password'
+              )}
             </button>
+
+            <div className="auth-flow-actions flex items-center justify-center border-t border-slate-200">
+              <button
+                type="button"
+                onClick={toLogin}
+                className="font-medium text-[#58709a] hover:text-[#00843D] transition-colors cursor-pointer text-sm"
+              >
+                Back to Sign In
+              </button>
+            </div>
           </form>
         )}
-      </div>
-    </div>
+      </section>
+
+      <footer className="auth-footer">
+        © 2026 Ministry of Agriculture (MoA) Asset Tracking System
+      </footer>
+    </main>
   );
 };

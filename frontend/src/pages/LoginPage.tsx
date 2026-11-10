@@ -4,27 +4,43 @@ import { api, getErrorStatus } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import {
   Lock,
-  Mail,
-  ArrowRight,
-  AlertCircle,
+  User,
   Eye,
   EyeOff,
-  X,
+  Headphones,
   CheckCircle2,
   KeyRound,
   RefreshCw,
-  ShieldCheck,
+  X,
+  Mail,
+  ArrowRight,
 } from "lucide-react";
 import { MoaLogo } from "../components/ui/MoaLogo";
+import { TechnicalSupportModal } from "../components/TechnicalSupportModal";
+
+const REMEMBERED_IDENTIFIER_KEY = "moa_remembered_identifier";
 
 export const LoginPage: React.FC = () => {
   const { login, sessionNotice } = useAuth();
   const toast = useToast();
-  const [usernameOrEmail, setUsernameOrEmail] = useState("");
+
+  const [rememberedIdentifier] = useState<string>(() => {
+    try {
+      return localStorage.getItem(REMEMBERED_IDENTIFIER_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [identifierInput, setIdentifierInput] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberChoice, setRememberChoice] = useState<boolean | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(sessionNotice);
+  const [isTechSupportOpen, setIsTechSupportOpen] = useState(false);
+
+  const usernameOrEmail = identifierInput ?? rememberedIdentifier;
+  const rememberMe = rememberChoice ?? Boolean(rememberedIdentifier);
 
   // Change Password Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -49,10 +65,16 @@ export const LoginPage: React.FC = () => {
   }, [showForgotModal]);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
-    
     e.preventDefault();
-    if (!usernameOrEmail.trim()) {
-      const msg = "Enter your email or employee ID.";
+    const trimmedId = usernameOrEmail.trim();
+    if (!trimmedId) {
+      const msg = "Enter your username or email address.";
+      setErrorMsg(msg);
+      toast.warning("Credentials Required", msg);
+      return;
+    }
+    if (!password) {
+      const msg = "Enter your password.";
       setErrorMsg(msg);
       toast.warning("Credentials Required", msg);
       return;
@@ -60,8 +82,19 @@ export const LoginPage: React.FC = () => {
     setErrorMsg(null);
     setSigningIn(true);
     try {
-      await login(usernameOrEmail.trim(), password);
-      toast.success("Welcome Back", "Your credentials are verified. Logging in...");
+      await login(trimmedId, password);
+
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBERED_IDENTIFIER_KEY, trimmedId);
+        } else {
+          localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
+      toast.success("Welcome Back", "Your credentials are verified. Signing in...");
     } catch (err: any) {
       const msg = err.message || "Authentication failed. Please verify credentials.";
       setErrorMsg(msg);
@@ -74,7 +107,6 @@ export const LoginPage: React.FC = () => {
   };
 
   const resetForgotDialog = () => {
-    
     setShowForgotModal(false);
     setResetError(null);
     setResetSuccessMessage(null);
@@ -84,7 +116,6 @@ export const LoginPage: React.FC = () => {
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
-    
     e.preventDefault();
     setResetError(null);
 
@@ -118,7 +149,7 @@ export const LoginPage: React.FC = () => {
         newPassword,
       });
       setResetSuccessMessage(res.message || "Password changed successfully.");
-      if (res.username) setUsernameOrEmail(res.username);
+      if (res.username) setIdentifierInput(res.username);
       setPassword(newPassword);
       toast.success("Password Updated", "You can now sign in with your new password.");
     } catch (err: any) {
@@ -129,428 +160,325 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div
-      className="auth-dark-bg min-h-screen w-screen flex items-center justify-center relative overflow-x-hidden selection:bg-amber-400 selection:text-emerald-950 font-sans p-4 sm:p-6"
-      style={{
-        background:
-          "linear-gradient(168deg, #0B6B3A 0%, #086034 50%, #06542D 100%)",
-      }}
-    >
-      {/* Background glow */}
-      <div
-        className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[320px] opacity-[0.16] blur-[90px]"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 35%, #FCDD09 0%, transparent 70%)",
-        }}
-      />
+    <main className="auth-shell">
+      <section
+        className="auth-card auth-card-login"
+        aria-labelledby="sign-in-title"
+      >
+        <div className="flex justify-center">
+          <MoaLogo size="md" />
+        </div>
 
-      {/* Geometric grid pattern */}
-      <div
-        className="pointer-events-none fixed inset-0 opacity-[0.05]"
-        style={{
-          backgroundImage:
-            "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
+        <div className="mt-3 text-center">
+          <h1
+            id="sign-in-title"
+            className="auth-page-title font-semibold tracking-tight text-[#00843D]"
+          >
+            MoA Asset Tracking System
+          </h1>
+          <p className="auth-page-subtitle mt-1.5 font-medium text-[#58709a]">
+            Internal Store-Level Tracking, Inventory and Audit
+          </p>
+        </div>
 
-      {/* Main Login Arena - Centered in Viewport */}
-      <main className="w-full max-w-[420px] z-10 animate-fadeIn my-auto">
-        {/* Error Banner */}
         {errorMsg && (
-          <div className="mb-4 p-3.5 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2.5 animate-shake shadow-lg backdrop-blur-md">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span className="font-medium">{errorMsg}</span>
+          <div
+            role="alert"
+            className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+          >
+            {errorMsg}
           </div>
         )}
 
-        {/* Authentic MoA Card with Balanced Proportions */}
-        <form
-          onSubmit={handleFormSubmit}
-          className="rounded-3xl border border-white/20 backdrop-blur-2xl py-8 sm:py-9 px-6 sm:px-8 relative overflow-hidden shadow-[0_24px_50px_-12px_rgba(0,35,16,0.65),0_8px_20px_-8px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
-          style={{
-            background:
-              "linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)",
-            boxShadow:
-              "0 28px 60px -14px rgba(0, 40, 18, 0.55), 0 12px 28px -10px rgba(0, 40, 18, 0.45), 0 0 50px -12px rgba(252, 221, 9, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
-          }}
-        >
-          {/* Top gold-emerald accent strip with glow */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-[0_1px_10px_rgba(252,221,9,0.55)]" />
-
-          {/* Subtle inner top specular highlight */}
-          <div className="absolute top-1.5 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-
-          {/* Brand Header with Majestic Logo and Spacing */}
-          <div className="text-center mb-6 pt-1">
-            <div className="relative inline-block mb-3">
-              <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-2xl -z-10 scale-125" />
-              <MoaLogo
-                className="w-18 h-18 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)] transition-transform hover:scale-105 duration-200"
-                alt="Ministry of Agriculture"
+        <form className="auth-form space-y-4" onSubmit={handleFormSubmit}>
+          <div>
+            <label htmlFor="identifier" className="auth-label">
+              Username or Email
+            </label>
+            <div className="auth-input-wrap">
+              <User aria-hidden="true" className="auth-input-icon" />
+              <input
+                id="identifier"
+                name="identifier"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                value={usernameOrEmail}
+                onChange={(e) => setIdentifierInput(e.target.value)}
+                placeholder="Enter your username or email"
+                className="auth-input pl-12"
               />
             </div>
-
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#FCDD09]">
-              Ministry of Agriculture (FDRE)
-            </p>
-            <h1 className="mt-1 text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-sm">
-              Internal Asset Tracking Portal
-            </h1>
-            <p className="text-xs text-emerald-100/80 mt-1">
-              Sign in with your organizational credentials
-            </p>
           </div>
 
-          {/* Form Inputs with Generous Height & Touch Targets */}
-          <div className="space-y-4 sm:space-y-5">
-            {/* Email / Payroll ID */}
-            <div>
-              <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
-                Email or Employee ID
-              </label>
-              <div className="relative group">
-                <Mail className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
-                <input
-                  type="text"
-                  required
-                  value={usernameOrEmail}
-                  onChange={(e) => setUsernameOrEmail(e.target.value)}
-                  placeholder="name@moa.gov.et or payroll ID"
-                  className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                  style={{
-                    background: "rgba(3, 56, 29, 0.72)",
-                    borderColor: "rgba(255, 255, 255, 0.22)",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Password & Forgot Password Link */}
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-100 mb-1.5">
-                <span>Password</span>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResetIdentifier(usernameOrEmail);
-                    setResetError(null);
-                    setResetSuccessMessage(null);
-                    setShowForgotModal(true);
-                  }}
-                  className="text-xs font-medium text-[#FCDD09] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1 group"
-                >
-                  <KeyRound className="w-3.5 h-3.5 text-[#FCDD09] group-hover:text-white transition-colors" />
-                  <span>Reset password</span>
-                </button>
-              </div>
-
-              <div className="relative group">
-                <Lock className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full h-11 pl-10 pr-11 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                  style={{
-                    background: "rgba(3, 56, 29, 0.72)",
-                    borderColor: "rgba(255, 255, 255, 0.22)",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors cursor-pointer p-1"
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4.5 h-4.5" />
-                  ) : (
-                    <Eye className="w-4.5 h-4.5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-2">
+          <div>
+            <label htmlFor="password" className="auth-label">
+              Password
+            </label>
+            <div className="auth-input-wrap">
+              <Lock aria-hidden="true" className="auth-input-icon" />
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="auth-input auth-input-with-trailing-action"
+              />
               <button
-                type="submit"
-                disabled={signingIn}
-                className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
-                }}
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#8da3c4] hover:text-[#00843D] cursor-pointer"
               >
-                <div className="absolute inset-0 bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-opacity" />
-                {signingIn ? (
-                  <>
-                    <RefreshCw className="w-4.5 h-4.5 animate-spin text-amber-300" />
-                    <span>Logging in...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Login</span>
-                    <ArrowRight className="w-4.5 h-4.5 text-amber-300 group-hover:translate-x-0.5 transition-transform" />
-                  </>
-                )}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
+
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <label className="flex cursor-pointer items-center gap-2 text-slate-700">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberChoice(e.target.checked)}
+                className="h-5 w-5 accent-blue-600 rounded cursor-pointer"
+              />
+              Remember me
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setResetIdentifier(usernameOrEmail);
+                setResetError(null);
+                setResetSuccessMessage(null);
+                setShowForgotModal(true);
+              }}
+              className="font-semibold text-[#00843D] hover:underline cursor-pointer"
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={signingIn || !usernameOrEmail.trim() || !password}
+            className="auth-primary-button"
+          >
+            {signingIn ? "Signing In…" : "Sign In"}
+          </button>
         </form>
 
-        {/* Security & Institutional Footer */}
-        <div className="mt-5 text-center space-y-1">
-          <p className="flex items-center justify-center gap-1.5 text-xs text-emerald-200/80 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#FCDD09]" />
-            <span>Authorized MoA personnel only · Secure portal</span>
-          </p>
-          <p className="text-[11px] text-emerald-200/60">
-            Federal Democratic Republic of Ethiopia
-          </p>
-        </div>
-      </main>
+        <button
+          type="button"
+          onClick={() => setIsTechSupportOpen(true)}
+          className="auth-support-link mx-auto flex items-center gap-2 font-medium text-[#58709a] hover:text-[#00843D] cursor-pointer"
+        >
+          <Headphones size={20} className="text-emerald-700" />
+          Technical Support
+        </button>
+      </section>
 
-      {/* ─── Change Password Dialog Modal: Matching Login Card Styling & Atmosphere ─── */}
+      <footer className="auth-footer">
+        © 2026 Ministry of Agriculture (MoA) Asset Tracking System
+      </footer>
+
+      <TechnicalSupportModal
+        isOpen={isTechSupportOpen}
+        onClose={() => setIsTechSupportOpen(false)}
+      />
+
+      {/* ─── Change / Forgot Password Modal: Unified with MoA Institutional Design System ─── */}
       {showForgotModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="change-pw-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm animate-fadeIn"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) resetForgotDialog();
+          }}
         >
-          {/* Translucent backdrop - allows radiant green background to shine through without blacking out */}
-          <div
-            className="absolute inset-0 bg-[#003D1C]/50 backdrop-blur-[2px]"
-            onClick={resetForgotDialog}
-            aria-hidden="true"
-          />
+          <div className="auth-card auth-card-flow w-full max-w-md relative animate-scaleIn">
+            <button
+              type="button"
+              onClick={resetForgotDialog}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Close dialog"
+            >
+              <X size={20} />
+            </button>
 
-          <div
-            className="w-full max-w-md rounded-3xl border border-white/20 backdrop-blur-2xl py-7 sm:py-9 px-5 sm:px-9 relative z-10 overflow-hidden ring-1 ring-white/10 text-white animate-scaleIn"
-            style={{
-              background:
-                "linear-gradient(168deg, rgba(11, 107, 58, 0.97) 0%, rgba(8, 96, 52, 0.98) 50%, rgba(6, 84, 45, 0.98) 100%)",
-              boxShadow:
-                "0 28px 60px -14px rgba(0, 40, 18, 0.55), 0 12px 28px -10px rgba(0, 40, 18, 0.45), 0 0 50px -12px rgba(252, 221, 9, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.5)",
-            }}
-          >
-            {/* Top gold-emerald accent strip with glow */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-[#FCDD09] to-emerald-600 shadow-[0_1px_10px_rgba(252,221,9,0.55)]" />
-
-            {/* Subtle inner top specular highlight */}
-            <div className="absolute top-1.5 left-4 right-4 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-
-            {/* Header & Close */}
-            <div className="flex items-start justify-between gap-3 mb-6 pt-1">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-amber-300 flex items-center justify-center shrink-0 shadow-inner">
-                  <KeyRound className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2
-                    id="change-pw-title"
-                    className="text-xl font-bold text-white tracking-tight"
-                  >
-                    Change Password
-                  </h2>
-                  <p className="text-xs text-emerald-200/75 mt-0.5">
-                    Update your account credentials
-                  </p>
-                </div>
+            <div className="flex items-start gap-3 mb-5">
+              <span className="rounded-xl bg-emerald-50 p-2 text-[#00843D] shrink-0">
+                <KeyRound size={22} />
+              </span>
+              <div>
+                <h2
+                  id="change-pw-title"
+                  className="auth-flow-title font-semibold tracking-tight text-[#00843D]"
+                >
+                  Change Password
+                </h2>
+                <p className="auth-flow-subtitle mt-1 text-slate-500">
+                  Update your account credentials to regain access
+                </p>
               </div>
-
-              <button
-                type="button"
-                onClick={resetForgotDialog}
-                className="text-emerald-400/70 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
 
-            {/* Confirmation / Success State */}
             {resetSuccessMessage ? (
-              <div className="space-y-6 py-2 animate-fadeIn">
-                <div className="p-4 rounded-xl bg-white/10 border border-white/20 flex items-start gap-3 shadow-inner">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="space-y-5 py-2">
+                <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+                  <CheckCircle2 size={22} className="shrink-0 text-emerald-600 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-bold text-white">
+                    <h3 className="text-sm font-semibold text-emerald-950">
                       Password Successfully Updated
                     </h3>
-                    <p className="text-xs text-emerald-200/80 mt-1 leading-relaxed">
+                    <p className="mt-1 text-xs text-emerald-800 leading-relaxed">
                       {resetSuccessMessage}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={resetForgotDialog}
-                    className="w-full h-11 sm:h-12 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99]"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
-                    }}
-                  >
-                    <span>Proceed to Sign In</span>
-                    <ArrowRight className="w-4.5 h-4.5 text-amber-300" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={resetForgotDialog}
+                  className="auth-primary-button"
+                >
+                  <span>Proceed to Sign In</span>
+                  <ArrowRight size={18} />
+                </button>
               </div>
             ) : (
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                {/* Error Banner */}
                 {resetError && (
-                  <div className="p-3 rounded-xl bg-red-950/90 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                    <span>{resetError}</span>
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700"
+                  >
+                    {resetError}
                   </div>
                 )}
 
-                <p className="text-xs text-emerald-200/75 leading-relaxed">
-                  Enter your employee credentials and current password to set your new password.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Enter your credentials and current password to choose a new password.
                 </p>
 
-                {/* Email or Payroll ID */}
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
+                  <label htmlFor="reset-id" className="auth-label">
                     Email or Employee ID
                   </label>
-                  <div className="relative group">
-                    <Mail className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                  <div className="auth-input-wrap">
+                    <Mail aria-hidden="true" className="auth-input-icon" />
                     <input
+                      id="reset-id"
                       type="text"
                       required
                       value={resetIdentifier}
                       onChange={(e) => setResetIdentifier(e.target.value)}
                       placeholder="e.g. name@moa.gov.et or payroll ID"
-                      className="w-full h-11 pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                      style={{
-                        background: "rgba(3, 56, 29, 0.72)",
-                        borderColor: "rgba(255, 255, 255, 0.22)",
-                      }}
+                      className="auth-input pl-12"
                     />
                   </div>
                 </div>
 
-                {/* Current / Temporary Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
+                  <label htmlFor="reset-current" className="auth-label">
                     Current or Temporary Password
                   </label>
-                  <div className="relative group">
-                    <Lock className="w-4.5 h-4.5 text-emerald-200/80 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-amber-400" />
+                  <div className="auth-input-wrap">
+                    <Lock aria-hidden="true" className="auth-input-icon" />
                     <input
+                      id="reset-current"
                       type={showCurrentPassword ? "text" : "password"}
                       required
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full h-11 pl-10 pr-10 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                      style={{
-                        background: "rgba(3, 56, 29, 0.72)",
-                        borderColor: "rgba(255, 255, 255, 0.22)",
-                      }}
+                      className="auth-input auth-input-with-trailing-action"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors cursor-pointer p-1"
-                      title={showCurrentPassword ? "Hide" : "Show"}
+                      onClick={() => setShowCurrentPassword((prev) => !prev)}
+                      aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                      className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-[#8da3c4] hover:text-[#00843D] cursor-pointer"
                     >
-                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
 
-                {/* New Password & Confirm Password */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
+                    <label htmlFor="reset-new" className="auth-label">
                       New Password
                     </label>
-                    <div className="relative group">
+                    <div className="auth-input-wrap">
                       <input
+                        id="reset-new"
                         type={showNewPassword ? "text" : "password"}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full h-11 pl-3.5 pr-9 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                        style={{
-                          background: "rgba(3, 56, 29, 0.72)",
-                          borderColor: "rgba(255, 255, 255, 0.22)",
-                        }}
+                        className="auth-input auth-input-with-trailing-action"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200/80 hover:text-white transition-colors p-1 cursor-pointer"
-                        title={showNewPassword ? "Hide" : "Show"}
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        aria-label={showNewPassword ? "Hide password" : "Show password"}
+                        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[#8da3c4] hover:text-[#00843D] cursor-pointer"
                       >
-                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-emerald-100 mb-1.5">
-                      Confirm New Password
+                    <label htmlFor="reset-confirm" className="auth-label">
+                      Confirm Password
                     </label>
                     <input
+                      id="reset-confirm"
                       type={showNewPassword ? "text" : "password"}
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-type new password"
-                      className="w-full h-11 px-3.5 rounded-xl text-xs sm:text-sm text-white placeholder-emerald-100/45 font-mono transition-all outline-none border shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400/60"
-                      style={{
-                        background: "rgba(3, 56, 29, 0.72)",
-                        borderColor: "rgba(255, 255, 255, 0.22)",
-                      }}
+                      className="auth-input"
                     />
                   </div>
                 </div>
 
-                <p className="text-[11px] text-emerald-300/60">
+                <p className="text-[11px] text-slate-500">
                   * Must be at least 8 characters and contain both letters and numbers.
                 </p>
 
-                {/* Form Buttons */}
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
                     onClick={resetForgotDialog}
-                    className="px-4 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={resetLoading}
-                    className="h-11 px-5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-[0_8px_20px_-4px_rgba(0,0,0,0.6),0_2px_6px_rgba(18,99,60,0.5)] cursor-pointer border border-amber-400/35 transition-all flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #00A24B 0%, #00843D 100%)",
-                    }}
+                    className="auth-primary-button w-auto px-5"
                   >
                     {resetLoading ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
-                        <span>Updating...</span>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Updating…</span>
                       </>
                     ) : (
-                      <>
-                        <KeyRound className="w-4 h-4 text-amber-300" />
-                        <span>Update Password</span>
-                      </>
+                      <span>Update Password</span>
                     )}
                   </button>
                 </div>
@@ -559,6 +487,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 };

@@ -49,21 +49,21 @@ const PageLoadingFallback: React.FC = () => (
 );
 
 const AuthLoadingFallback: React.FC = () => (
-  <div className="h-screen w-screen bg-[#071911] text-white flex flex-col items-center justify-center p-4">
+  <main className="auth-shell">
     <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-pulse">
-      <div className="w-18 h-18 flex items-center justify-center">
-        <MoaLogo className="w-full h-full drop-shadow-xl" alt="Ministry of Agriculture" />
+      <div className="flex justify-center">
+        <MoaLogo size="md" />
       </div>
       <div>
-        <h2 className="text-lg font-bold text-white tracking-tight">
-          MoA<span className="text-[#FCDD09]">-ATS</span>
+        <h2 className="text-xl font-semibold text-[#00843D] tracking-tight">
+          MoA Asset Tracking System
         </h2>
-        <p className="text-xs text-emerald-200/80">
+        <p className="text-sm font-medium text-[#58709a] mt-1">
           Loading portal…
         </p>
       </div>
     </div>
-  </div>
+  </main>
 );
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -184,21 +184,21 @@ const AuthenticatedPortal: React.FC = () => {
   // Loading state with MoA branding
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-[#071911] text-white flex flex-col items-center justify-center p-4">
+      <main className="auth-shell">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-pulse">
-          <div className="w-18 h-18 flex items-center justify-center">
-            <MoaLogo className="w-full h-full drop-shadow-xl" alt="Ministry of Agriculture" />
+          <div className="flex justify-center">
+            <MoaLogo size="md" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">
-              MoA<span className="text-[#FCDD09]">-ATS</span>
+            <h2 className="text-xl font-semibold text-[#00843D] tracking-tight">
+              MoA Asset Tracking System
             </h2>
-            <p className="text-xs text-emerald-200/80">
-              Verifying your Session Credentials...
+            <p className="text-sm font-medium text-[#58709a] mt-1">
+              Verifying your session credentials…
             </p>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
