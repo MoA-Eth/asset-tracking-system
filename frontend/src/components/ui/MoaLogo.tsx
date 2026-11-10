@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
-import moaLogoUrl from '../../assets/moa-logo.png';
+import moaEmblemUrl from '../../assets/moa-logo.png';
+import moaFullLogoUrl from '../../assets/moa-full-logo.png';
 
 export interface MoaLogoProps {
   className?: string;
   alt?: string;
   size?: 'sm' | 'md' | 'lg';
+  variant?: 'emblem' | 'full';
 }
 
 const widths = { sm: 132, md: 190, lg: 230 } as const;
 
 /**
- * Official Ministry of Agriculture emblem used on printed slips, statutory vouchers, and app chrome.
- * Uses the authentic MoA Ethiopia circular emblem (sun rays, green terraced fields, and blue waters).
+ * Official Ministry of Agriculture emblem and logo lockup:
+ * - Default / variant="emblem": 32-bit transparent circular emblem (sun rays, green terraces, blue waves).
+ *   Used in the sidebar, app chrome, headers, and vouchers without any opaque box or unreadable text.
+ * - size prop / variant="full": Complete institutional lockup with official typography
+ *   (የግብርና ሚኒስቴር / MINISTRY OF AGRICULTURE) for sign-in and auth cards.
  */
 export const MoaLogo: React.FC<MoaLogoProps> = ({
   className = 'w-14 h-14',
   alt = 'Ministry of Agriculture',
   size,
+  variant,
 }) => {
   const [hasError, setHasError] = useState(false);
 
@@ -31,11 +37,14 @@ export const MoaLogo: React.FC<MoaLogoProps> = ({
     );
   }
 
-  if (size) {
-    const width = widths[size];
+  // Use full typography lockup on auth cards when size or variant="full" is requested
+  const isFullLockup = variant === 'full' || (size !== undefined && variant !== 'emblem');
+
+  if (isFullLockup) {
+    const width = size ? widths[size] : 190;
     return (
       <img
-        src={moaLogoUrl}
+        src={moaFullLogoUrl}
         alt={alt}
         width={width}
         height={Math.round((width * 2) / 3)}
@@ -49,12 +58,11 @@ export const MoaLogo: React.FC<MoaLogoProps> = ({
 
   return (
     <img
-      src={moaLogoUrl}
+      src={moaEmblemUrl}
       alt={alt}
       onError={() => setHasError(true)}
-      className={`${className} rounded-full object-contain inline-block shrink-0`}
+      className={`${className} object-contain inline-block shrink-0`}
       loading="eager"
     />
   );
 };
-
