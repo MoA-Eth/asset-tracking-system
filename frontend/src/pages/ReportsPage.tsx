@@ -83,6 +83,7 @@ export const ReportsPage: React.FC = () => {
   const [customTo, setCustomTo] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedLocation, setSelectedLocation] = useState<string>('ALL');
+  const [selectedProgram, setSelectedProgram] = useState<string>('ALL');
 
 
   const dateInfo = getTodayGcAndEc();
@@ -253,7 +254,10 @@ export const ReportsPage: React.FC = () => {
       // 4. Store Location Filter
       if (selectedLocation !== 'ALL' && item.storeLocationId !== selectedLocation) return false;
 
-      // 5. Search Term Filter
+      // 5. Program / Project Filter
+      if (selectedProgram !== 'ALL' && (item.programName || '') !== selectedProgram) return false;
+
+      // 6. Search Term Filter
       if (searchTerm.trim()) {
         const q = searchTerm.trim().toLowerCase();
         const historySlips = (item.history || []).map((h) => `${h.ifmisSlipNumber || ''} ${h.notes || ''}`).join(' ');
@@ -311,6 +315,7 @@ export const ReportsPage: React.FC = () => {
     customTo,
     selectedCategory,
     selectedLocation,
+    selectedProgram,
     searchTerm,
     todayStr,
     startOfWeekStr,
@@ -350,6 +355,14 @@ export const ReportsPage: React.FC = () => {
   const columnTotals = filteredItems.every((i) => !isConsumable(i));
 
   const tabCounts = useMemo(() => ({ all: recordedItems.length, registered: recordedItems.length, available: recordedItems.filter((i) => balanceOf(i).available > 0).length, issued: recordedItems.filter((i) => balanceOf(i).issued > 0).length, transferred: recordedItems.filter((i) => i.status === ItemStatus.UNDER_TRANSFER || (splitsByRoot.get(i.id) || []).some((sp) => sp.status === ItemStatus.UNDER_TRANSFER || (sp.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))) || (i.history || []).some((h) => /TRANSFER|RETURN/i.test(h.action))).length }), [recordedItems, splitsByRoot]);
+
+  const programOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of recordedItems) {
+      if (item.programName?.trim()) set.add(item.programName.trim());
+    }
+    return Array.from(set).sort().map((name) => ({ value: name, label: name }));
+  }, [recordedItems]);
 
   const getTimeframeLabel = () => {
     switch (timeframe) {
@@ -411,6 +424,7 @@ export const ReportsPage: React.FC = () => {
         'Tracking Code',
         'Asset Name',
         'Category',
+        'Project / Program',
         'Status',
         'IFMIS Slip #',
         'Receipt/Slip Date (E.C.)',
@@ -432,6 +446,7 @@ export const ReportsPage: React.FC = () => {
         item.itemCode,
         item.name,
         item.category,
+        item.programName || '',
         statusLabel(item),
         item.ifmisSlipNumber,
         item.ifmisSlipDateEc || item.createdAtEc,
@@ -475,18 +490,20 @@ export const ReportsPage: React.FC = () => {
         summary: [
           ['Period', getTimeframeLabel()],
           ['Category', category],
+          ['Project / Program', selectedProgram === 'ALL' ? 'All projects' : selectedProgram],
           ['Store or location', location],
           ['Registrations', String(filteredItems.length)],
           ['Fixed assets (units)', `${held.fixed.held.toLocaleString()}: ${held.fixed.inStore.toLocaleString()} in store, ${held.fixed.issued.toLocaleString()} assigned`],
           ['Consumables (items)', `${held.supplies.held.toLocaleString()}: ${held.supplies.inStore.toLocaleString()} in store, ${held.supplies.issued.toLocaleString()} assigned`],
           ['Total valuation', formatETB(totalValuation)],
         ],
-        head: ['#', 'Code', 'Asset', 'Category', 'Status', 'Received', 'Issued', 'In store', 'Date (E.C.)', 'Held by / where', 'Unit cost (ETB)'],
+        head: ['#', 'Code', 'Asset', 'Category', 'Project', 'Status', 'Received', 'Issued', 'In store', 'Date (E.C.)', 'Held by / where', 'Unit cost (ETB)'],
         rows: filteredItems.map((item, idx) => [
           String(idx + 1),
           item.itemCode,
           item.name,
           CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label ?? item.category.replace(/_/g, ' '),
+          item.programName || '—',
           statusLabel(item),
           String(balanceOf(item).total),
           String(balanceOf(item).issued),
@@ -495,9 +512,9 @@ export const ReportsPage: React.FC = () => {
           item.currentCustodian?.fullNameEn || item.heldByOrganization || item.assignedDepartment?.nameEn || storeLocationLabel(item.storeLocation),
           formatETB(costOf(item)).replace(/^ETB\s*/, ''),
         ]),
-        totals: ['', 'Total', `${filteredItems.length} registrations`, '', '', ...(columnTotals ? [String(unitTotals.total), String(unitTotals.issued), String(unitTotals.available)] : ['', '', '']), '', 'Valuation', formatETB(totalValuation).replace(/^ETB\s*/, '')],
-        numeric: [0, 5, 6, 7, 10],
-        widths: { 0: 24, 1: 82, 3: 92, 4: 62, 5: 46, 6: 40, 7: 44, 8: 60, 10: 74 },
+        totals: ['', 'Total', `${filteredItems.length} registrations`, '', '', '', ...(columnTotals ? [String(unitTotals.total), String(unitTotals.issued), String(unitTotals.available)] : ['', '', '']), '', 'Valuation', formatETB(totalValuation).replace(/^ETB\s*/, '')],
+        numeric: [0, 6, 7, 8, 11],
+        widths: { 0: 22, 1: 76, 3: 74, 4: 76, 5: 58, 6: 42, 7: 38, 8: 42, 9: 56, 11: 72 },
         dateGc: dateInfo.gc,
         dateEc: dateInfo.ecFormattedEn,
         preparedBy: user?.fullNameEn,
@@ -518,7 +535,7 @@ export const ReportsPage: React.FC = () => {
     { id: 'transferred', label: 'Transferred & Returned', count: tabCounts.transferred },
   ];
 
-  type ReportSortColumn = 'code' | 'name' | 'category' | 'status' | 'received' | 'issued' | 'available' | 'slip' | 'date' | 'custodian' | 'cost';
+  type ReportSortColumn = 'code' | 'name' | 'category' | 'project' | 'status' | 'received' | 'issued' | 'available' | 'slip' | 'date' | 'custodian' | 'cost';
   const [sortColumn, setSortColumn] = useState<ReportSortColumn>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -541,6 +558,8 @@ export const ReportsPage: React.FC = () => {
         diff = a.name.localeCompare(b.name);
       } else if (sortColumn === 'category') {
         diff = a.category.localeCompare(b.category);
+      } else if (sortColumn === 'project') {
+        diff = (a.programName || '').localeCompare(b.programName || '');
       } else if (sortColumn === 'status') {
         diff = statusLabel(a).localeCompare(statusLabel(b));
       } else if (sortColumn === 'received') {
@@ -567,7 +586,7 @@ export const ReportsPage: React.FC = () => {
   }, [filteredItems, sortColumn, sortDirection]);
 
   // Exports still use every filtered row; only the table on screen is paged
-  const pager = usePagination(sortedItems, { resetKey: `${searchTerm}|${timeframe}|${reportType}|${selectedCategory}|${selectedLocation}|${sortColumn}|${sortDirection}` });
+  const pager = usePagination(sortedItems, { resetKey: `${searchTerm}|${timeframe}|${reportType}|${selectedCategory}|${selectedLocation}|${selectedProgram}|${sortColumn}|${sortDirection}` });
 
   // ── Statutory Report Types ──
   const statutoryReports = useMemo(() => [
@@ -620,9 +639,10 @@ export const ReportsPage: React.FC = () => {
     if (timeframe !== 'ALL_TIME') count++;
     if (selectedCategory !== 'ALL') count++;
     if (selectedLocation !== 'ALL') count++;
+    if (selectedProgram !== 'ALL') count++;
     if (reportType !== 'all') count++;
     return count;
-  }, [timeframe, selectedCategory, selectedLocation, reportType]);
+  }, [timeframe, selectedCategory, selectedLocation, selectedProgram, reportType]);
 
   const viewChanged = activeFilterCount > 0 || !!searchTerm.trim();
 
@@ -632,6 +652,7 @@ export const ReportsPage: React.FC = () => {
     setCustomTo('');
     setSelectedCategory('ALL');
     setSelectedLocation('ALL');
+    setSelectedProgram('ALL');
     setReportType('all');
   };
 
@@ -860,6 +881,20 @@ export const ReportsPage: React.FC = () => {
                     }))}
                   />
                 </FilterSection>
+
+                {/* Program / Project */}
+                {programOptions.length > 0 && (
+                  <FilterSection label="Program / Project" htmlFor="report-filter-program">
+                    <FilterSelect
+                      id="report-filter-program"
+                      ariaLabel="Filter by program or project"
+                      placeholder="All Projects"
+                      value={selectedProgram}
+                      onChange={setSelectedProgram}
+                      options={programOptions}
+                    />
+                  </FilterSection>
+                )}
               </FilterPopover>
 
               {/* Direct Statutory Export Actions */}
@@ -986,7 +1021,7 @@ export const ReportsPage: React.FC = () => {
           )}
 
           {/* Active Filter Chips */}
-          {(timeframe !== 'ALL_TIME' || selectedCategory !== 'ALL' || selectedLocation !== 'ALL') && (
+          {(timeframe !== 'ALL_TIME' || selectedCategory !== 'ALL' || selectedLocation !== 'ALL' || selectedProgram !== 'ALL') && (
             <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
               <span className="text-[11px] font-semibold text-slate-500">Active filters:</span>
               {timeframe !== 'ALL_TIME' && (
@@ -1030,6 +1065,20 @@ export const ReportsPage: React.FC = () => {
                     title="Reset location filter"
                     aria-label="Reset location filter"
                     className="hover:text-purple-950 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              )}
+              {selectedProgram !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-900 text-[11px] font-medium border border-teal-200">
+                  <span>Project: {selectedProgram}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProgram('ALL')}
+                    title="Reset project filter"
+                    aria-label="Reset project filter"
+                    className="hover:text-teal-950 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1106,6 +1155,14 @@ export const ReportsPage: React.FC = () => {
                   thClassName="hidden 2xl:table-cell py-1.5 px-3 w-28 shrink-0 whitespace-nowrap"
                 />
                 <SortableHeader
+                  label="Project"
+                  columnKey="project"
+                  currentSortColumn={sortColumn}
+                  currentSortDirection={sortDirection}
+                  onSort={handleSort}
+                  thClassName="hidden xl:table-cell py-1.5 px-3 min-w-[110px] max-w-[160px] shrink-0"
+                />
+                <SortableHeader
                   label="Status"
                   columnKey="status"
                   currentSortColumn={sortColumn}
@@ -1174,7 +1231,7 @@ export const ReportsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-slate-400 space-y-1">
+                  <td colSpan={13} className="py-16 text-center text-slate-400 space-y-1">
                     <FileSpreadsheet className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-700 text-sm">No Assets Found</p>
                     <p className="text-xs text-slate-400">
@@ -1206,6 +1263,14 @@ export const ReportsPage: React.FC = () => {
                           {item.name}
                         </div>
                         <div className="2xl:hidden text-[11px] text-slate-500 tabular-nums">{item.itemCode}</div>
+                        {item.programName && (
+                          <div
+                            className="xl:hidden text-[11px] text-sky-700 truncate"
+                            title={`Project: ${item.programName}`}
+                          >
+                            Proj: {item.programName}
+                          </div>
+                        )}
                         {item.serialNumber && !isGeneratedSerialNumber(item.serialNumber) && (
                           <div
                             className="text-xs text-slate-500 truncate"
@@ -1217,6 +1282,11 @@ export const ReportsPage: React.FC = () => {
                       </td>
                       <td className="hidden 2xl:table-cell py-2 px-3 text-slate-600 whitespace-nowrap w-28 shrink-0">
                         {categoryLabel(item)}
+                      </td>
+                      <td className="hidden xl:table-cell py-2 px-3 text-slate-700 max-w-[160px] shrink-0">
+                        <div className="truncate" title={item.programName || '—'}>
+                          {item.programName || '—'}
+                        </div>
                       </td>
                       <td className="py-2 px-3 whitespace-nowrap w-28 shrink-0">
                         <span

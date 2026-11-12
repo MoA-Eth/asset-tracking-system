@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Car, Plus, X } from 'lucide-react';
+import { Search, FileText, Car, Plus, Trash2, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { ItemWithRelations, ItemStatus, ItemType, ItemCondition, Department, Employee, Location, Model21Voucher, TransactionApproval, ApprovalStatus } from '../../types/asset-management';
 import { formatVoucherRemark } from '../../utils/voucher-remark';
@@ -45,12 +45,29 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   RETURN: 'Return',
 };
 
-const accessoriesOf = (jack: number, wrench: number, keys: number, reserveTyre: number) =>
+export const PRESET_ACCESSORY_NAMES = new Set(['jack with handle', 'tire wrench', 'key', 'reserve tyre']);
+
+export interface CustomAccessoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+}
+
+const accessoriesOf = (
+  jack: number,
+  wrench: number,
+  keys: number,
+  reserveTyre: number,
+  custom: CustomAccessoryItem[] = []
+) =>
   [
     { name: 'jack with handle', quantity: jack },
     { name: 'tire wrench', quantity: wrench },
     { name: 'key', quantity: keys },
     { name: 'reserve tyre', quantity: reserveTyre },
+    ...custom
+      .filter((c) => c.name.trim() && c.quantity > 0)
+      .map((c) => ({ name: c.name.trim(), quantity: c.quantity })),
   ].filter((a) => a.quantity > 0);
 
 /** One line on the Model 21 transfer voucher */
@@ -199,6 +216,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       setTireWrenchQty(0);
       setKeyQty(0);
       setReserveTyreQty(0);
+      setCustomAccessories([]);
     }
   };
 
@@ -226,6 +244,29 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
   const [keyQty, setKeyQty] = useState(qtyOf('key'));
   const [reserveTyreQty, setReserveTyreQty] = useState(qtyOf('reserve tyre'));
+  const [customAccessories, setCustomAccessories] = useState<CustomAccessoryItem[]>(() => {
+    if (!details.accessories || !Array.isArray(details.accessories)) return [];
+    return details.accessories
+      .filter((a) => !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim()))
+      .map((a, idx) => ({ id: `init-${idx}`, name: a.name, quantity: a.quantity || 1 }));
+  });
+
+  const handleAddCustomAccessory = () => {
+    setCustomAccessories((prev) => [
+      ...prev,
+      { id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', quantity: 1 },
+    ]);
+  };
+
+  const handleUpdateCustomAccessory = (id: string, patch: Partial<CustomAccessoryItem>) => {
+    setCustomAccessories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    );
+  };
+
+  const handleRemoveCustomAccessory = (id: string) => {
+    setCustomAccessories((prev) => prev.filter((c) => c.id !== id));
+  };
   const [tireSerials, setTireSerials] = useState(details.tireNos?.join(', ') ?? '');
   const [defectRemark, setDefectRemark] = useState(formatVoucherRemark(details.remark) ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -424,11 +465,21 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     // The vehicle details printed under the table, for the asset the form fills in
     if (vehicle && (usable || editTransfer)) {
       const qty = (name: string) => vehicle.accessories.find((a) => a.name === name)?.quantity;
+      const customAccs = vehicle.accessories.filter(
+        (a) => !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim())
+      );
       const got = [
         vehicle.chassisNumber && (setChassisNumber(vehicle.chassisNumber), 'chassis'),
         vehicle.plateNo && (setPlateNo(vehicle.plateNo), 'plate'),
         vehicle.engineNo && (setEngineNo(vehicle.engineNo), 'engine'),
-        vehicle.accessories.length > 0 && (setJackQty(qty('jack with handle') ?? 0), setTireWrenchQty(qty('tire wrench') ?? 0), setKeyQty(qty('key') ?? 0), setReserveTyreQty(qty('reserve tyre') ?? 0), 'accessories'),
+        vehicle.accessories.length > 0 && (
+          setJackQty(qty('jack with handle') ?? 0),
+          setTireWrenchQty(qty('tire wrench') ?? 0),
+          setKeyQty(qty('key') ?? 0),
+          setReserveTyreQty(qty('reserve tyre') ?? 0),
+          customAccs.length > 0 && setCustomAccessories(customAccs.map((a, idx) => ({ id: `pdf-${idx}-${Date.now()}`, name: a.name, quantity: a.quantity }))),
+          'accessories'
+        ),
         vehicle.tireNos.length > 0 && (setTireSerials(vehicle.tireNos.join(', ')), `${vehicle.tireNos.length} tire numbers`),
         vehicle.remark && (setDefectRemark(formatVoucherRemark(vehicle.remark) ?? ''), 'remark'),
       ].filter(Boolean) as string[];
@@ -628,7 +679,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     const effectiveReason = isReturn ? (returnReason.trim() || 'Return to store') : undefined;
     const effectiveTargetEmployeeId = targetEmployeeId || (isReturn ? undefined : employees[0]?.id);
 
-    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty);
+    const accessories = accessoriesOf(jackQty, tireWrenchQty, keyQty, reserveTyreQty, customAccessories);
     const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
     setSubmittingLock(true);
     try {
@@ -1527,7 +1578,7 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
       </Part>
 
       {/* ── Vehicle and machinery details: for vehicles and machinery, when the PDF gave some, or when asked for ── */}
-      {!(showVehicle || hasVehicleLike || selectedIsVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim())) ? (
+      {!(showVehicle || hasVehicleLike || selectedIsVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim() || customAccessories.length > 0)) ? (
         <button
           type="button"
           onClick={() => setShowVehicle(true)}
@@ -1565,6 +1616,64 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
               <QuantityInput id="transfer-reserve" value={reserveTyreQty} onChange={setReserveTyreQty} />
             </Field>
           </FieldGrid>
+
+          {/* Custom spare parts & accessories */}
+          <div className="space-y-2 pt-1 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <span className="text-xs font-semibold text-slate-700">Other spare parts & accessories</span>
+                <p className="text-[11px] text-slate-500">Add any additional vehicle spare parts, tools, or items not listed above.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddCustomAccessory}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-800 transition cursor-pointer select-none"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add custom spare part</span>
+              </button>
+            </div>
+
+            {customAccessories.length > 0 && (
+              <div className="space-y-2 pt-1">
+                {customAccessories.map((part, index) => (
+                  <div
+                    key={part.id}
+                    className="flex items-center gap-2.5 p-2 bg-slate-50/80 border border-slate-200 rounded-md"
+                  >
+                    <div className="flex-1">
+                      <label htmlFor={`custom-part-name-${part.id}`} className="sr-only">Spare part name</label>
+                      <input
+                        id={`custom-part-name-${part.id}`}
+                        type="text"
+                        placeholder="e.g. Fire extinguisher, First aid kit, Jumper cables, Tool kit..."
+                        value={part.name}
+                        onChange={(e) => handleUpdateCustomAccessory(part.id, { name: e.target.value })}
+                        className={input({ mono: false })}
+                        aria-label={`Spare part name ${index + 1}`}
+                      />
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <QuantityInput
+                        id={`custom-part-qty-${part.id}`}
+                        value={part.quantity}
+                        onChange={(val) => handleUpdateCustomAccessory(part.id, { quantity: val })}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCustomAccessory(part.id)}
+                      title="Remove spare part"
+                      aria-label={`Remove spare part ${part.name || index + 1}`}
+                      className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Field label="Tyre serial numbers" optional htmlFor="transfer-tires" hint="Separate with commas or new lines">
             <input
