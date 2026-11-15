@@ -2739,7 +2739,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
                       className="inline-flex items-center justify-center gap-2 px-4 h-9 bg-moa-green hover:bg-moa-green-hover disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-[13px] rounded-md shadow-xs transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Receive items (Model 19)</span>
+                      <span>Register assets</span>
                     </button>
                   )}
 
@@ -2963,7 +2963,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
                 <p className="text-xs text-slate-500">
                   {rows.length === 0
                     ? canReceive
-                      ? 'Use "Receive items" to record the first delivery on Model 19.'
+                      ? 'Use "Register assets" to record the first delivery on Model 19.'
                       : 'Assets appear here once they are received into store.'
                     : 'Try a different filter or search.'}
                 </p>

@@ -998,7 +998,7 @@ describe('Assets page', () => {
     auth.user.permissions = ['inventory.read', 'approvals.read', 'approvals.endorse'];
     render(<AssetsPage currentRole={UserRole.TEAM_LEADER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    expect(screen.queryByRole('button', { name: /Receive items/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Register assets/ })).not.toBeInTheDocument();
     // Nothing to do from a row: no menu. The record opens from the row and prints from there
     for (const code of ['MOA-S1', 'MOA-I1', 'MOA-P1']) expect(within(rowOf(code)).queryByRole('button', { name: `Actions for ${code}` })).toBeNull();
     await user.click(within(rowOf('MOA-S1')).getByText('MOA-S1'));
@@ -1312,7 +1312,7 @@ describe('Asset record', () => {
     vi.mocked(readPdfRows).mockResolvedValue(asRows(lines));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF-1.4'], 'other-form.pdf', { type: 'application/pdf' }));
 
@@ -1347,7 +1347,7 @@ describe('Asset record', () => {
     } as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
@@ -1410,7 +1410,7 @@ describe('Asset record', () => {
     ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
@@ -1438,7 +1438,7 @@ describe('Asset record', () => {
     ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
@@ -1466,7 +1466,7 @@ describe('Asset record', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     const signed = within(panel).getByRole('region', { name: 'Store and signatures' });
     await user.upload(signed.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'model19-photo.jpg', { type: 'image/jpeg' }));
@@ -1487,7 +1487,7 @@ describe('Asset record', () => {
     const r = (top: number, ...cells: [number, string][]): PdfRow => ({ top, cells: cells.map(([x, text]) => ({ x, text })) });
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     // One place to read the IFMIS PDF: the box at the top, no Import receipt button
     expect(screen.queryByRole('button', { name: 'Import receipt' })).toBeNull();
@@ -1520,7 +1520,7 @@ describe('Asset record', () => {
     vi.mocked(ocrRows).mockResolvedValueOnce(asRows(['Print Model19 Report', 'INV Model 19 No. :  0000070', 'PO Number :  104', 'Received By Name :  BAHIA']));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
     expect(await within(panel).findByText(/Filled in from the scan: Model 19 No\., PO number\. A scan can be misread, so check every value against the paper/)).toBeInTheDocument();
@@ -1536,7 +1536,7 @@ describe('Asset record', () => {
     vi.mocked(readPdfRows).mockResolvedValue([]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.type(within(panel).getByLabelText(/Model 19 No/i), '0000077');
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
@@ -1869,13 +1869,13 @@ describe('Asset record', () => {
     expect(within(record).getAllByText(/ETB 1,000/).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('opens sliding panel when "+ Receive items (Model 19)" is clicked, and closes on Cancel, CloseButton, and Escape', async () => {
+  it('opens sliding panel when "+ Register assets" is clicked, and closes on Cancel, CloseButton, and Escape', async () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    // Click "+ Receive items (Model 19)" in header
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    // Click "+ Register assets" in header
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
 
     // Region opens with Fishbowl TitleBar
     const panel = screen.getByRole('region', { name: 'Receive items' });
@@ -1896,13 +1896,13 @@ describe('Asset record', () => {
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
 
     // 2. CloseButton closes it
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel2 = screen.getByRole('region', { name: 'Receive items' });
     await user.click(within(panel2).getByRole('button', { name: 'Close registration' }));
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
 
     // 3. Escape key closes it
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     expect(screen.getByRole('region', { name: 'Receive items' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('region', { name: 'Receive items' })).not.toBeInTheDocument();
@@ -1913,7 +1913,7 @@ describe('Asset record', () => {
     vi.mocked(api.registerStockIn).mockResolvedValue({ item: { id: 'D-1', itemCode: 'MOA-D1' }, items: [{ id: 'D-1', itemCode: 'MOA-D1' }] } as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     // Nobody picks purchase or donation: the PO number decides, as on the Model 19
@@ -1961,7 +1961,7 @@ describe('Asset record', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
 
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     const submitBtn = within(panel).getByRole('button', { name: /Submit for approval/i });
 
@@ -2095,7 +2095,7 @@ describe('Receiving form: Delivered by follows the buyer', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     // A purchase: it has a PO number
     await user.type(within(panel).getByLabelText(/PO number/i), '186');
@@ -2131,7 +2131,7 @@ describe('Receiving form: replacing or racing slips', () => {
   const openReceive = async (user: ReturnType<typeof userEvent.setup>) => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     const upload = (name: string) => user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], name, { type: 'application/pdf' }));
     return { panel, upload };
@@ -2237,7 +2237,7 @@ describe('Receiving form: store and signatures from the Model 19', () => {
     ]);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
@@ -2264,7 +2264,7 @@ describe('Receiving form: the encoder’s own store', () => {
     ] as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Receiving store/i)).toHaveValue('S2'));
   });
@@ -2292,7 +2292,7 @@ describe('Receiving form: item type from the IFMIS code, for PDFs and older reco
     vi.mocked(api.uploadSlip).mockResolvedValue({ url: '/api/uploads/slips/model19.pdf' } as any);
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
 
@@ -2343,7 +2343,7 @@ describe('Receiving form: one table for every item', () => {
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     expect(within(panel).getByRole('region', { name: 'Items (1)' })).toBeInTheDocument();
@@ -2376,7 +2376,7 @@ describe('Receiving form: footer notes', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     expect(within(panel).queryByText(/Still needed/i)).toBeNull();
@@ -2388,7 +2388,7 @@ describe('Receiving form: footer notes', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     await user.click(within(panel).getByRole('button', { name: /Submit for approval/i }));
@@ -2407,7 +2407,7 @@ describe('Receiving form: footer notes', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     await user.type(within(panel).getByLabelText(/IFMIS item code/i), '108101101.0021');
@@ -2421,7 +2421,7 @@ describe('Receiving form: footer notes', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     await user.type(within(panel).getByLabelText(/Item description/i), 'Office chair');
@@ -2439,7 +2439,7 @@ describe('Receiving form: footer notes', () => {
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
 
     await user.type(within(panel).getByLabelText(/Unit price/i), '1000');
@@ -2462,7 +2462,7 @@ describe('Receiving form: provision from the PO number on the Model 19', () => {
     vi.mocked(readPdfRows).mockResolvedValueOnce(model19(header));
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     await user.upload(panel.querySelector('input[type="file"]') as HTMLInputElement, new File(['%PDF'], 'model19.pdf', { type: 'application/pdf' }));
     await vi.waitFor(() => expect(within(panel).getByLabelText(/Model 19 No/i)).toHaveValue('0000321'));
@@ -2506,7 +2506,7 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     // Nothing chosen: no preview
     expect(within(panel).queryByRole('region', { name: 'Slip preview' })).toBeNull();
@@ -2535,7 +2535,7 @@ describe('Receiving form: the uploaded slip is shown open under the form', () =>
     const user = userEvent.setup();
     render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
     await screen.findByText('MOA-S1');
-    await user.click(screen.getByRole('button', { name: /Receive items \(Model 19\)/i }));
+    await user.click(screen.getByRole('button', { name: /Register assets/i }));
     const panel = screen.getByRole('region', { name: 'Receive items' });
     expect(within(panel).getByText('Click to choose the Model 19 PDF saved from IFMIS, or a photo')).toBeInTheDocument();
     expect(within(panel).queryByText('Click to attach the signed Model 19, scanned')).toBeNull();

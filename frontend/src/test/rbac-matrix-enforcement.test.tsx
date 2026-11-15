@@ -146,15 +146,15 @@ describe('Frontend RBAC Permission Matrix Enforcement', () => {
   });
 
   describe('Page Action Gating via Matrix Permissions', () => {
-    it('shows "Receive items" on the Assets page only when stock-in.write is granted', async () => {
+    it('shows "Register assets" on the Assets page only when stock-in.write is granted', async () => {
       mockAuth.user = { id: 'u1', role: UserRole.DATA_ENCODER, permissions: ['stock-in.write'], allowedTabs: ['assets'], landingTab: 'assets' } as any;
       mockAuth.role = UserRole.DATA_ENCODER;
       const { rerender } = render(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(await screen.findByRole('button', { name: /Receive items \(Model 19\)/i })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: /Register assets/i })).toBeInTheDocument();
 
       mockAuth.user = { id: 'u1', role: UserRole.DATA_ENCODER, permissions: ['inventory.read'], allowedTabs: ['assets'], landingTab: 'assets' } as any;
       rerender(<AssetsPage currentRole={UserRole.DATA_ENCODER} onNavigate={vi.fn()} />);
-      expect(screen.queryByRole('button', { name: /Receive items \(Model 19\)/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Register assets/i })).not.toBeInTheDocument();
     });
   });
 });
