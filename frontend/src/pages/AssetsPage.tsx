@@ -717,6 +717,9 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
       ...((item.isHistoricalData || /^(count-|ቆጠራ)/i.test(item.ifmisSlipNumber || '')) ? ['ቆጠራ', 'count', 'kotera', 'yekotera', 'physical count', 'inventory count', 'ቆጠራ እቃዎች', 'count data'] : []),
       ...poVariations,
       item.serialNumber,
+      item.chassisNumber,
+      item.plateNo,
+      item.engineNo,
       item.itemCategoryDisplay,
       item.category,
       item.programName,
@@ -2318,7 +2321,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
                             // A copy keeps the item's real name; the title says which record it was copied from
                             : receipt.copyOf
                               ? `Duplicate of ${receipt.copyOf}`
-                              : 'Receive items · Model 19'}
+                              : 'Register assets · Model 19'}
                       </h3>
                       <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         {receipt.edit ? 'Correction' : 'New Delivery'}

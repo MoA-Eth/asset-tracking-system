@@ -1880,7 +1880,7 @@ describe('Asset record', () => {
     // Region opens with Fishbowl TitleBar
     const panel = screen.getByRole('region', { name: 'Receive items' });
     expect(panel).toBeInTheDocument();
-    expect(within(panel).getByText('Receive items · Model 19')).toBeInTheDocument();
+    expect(within(panel).getByText('Register assets · Model 19')).toBeInTheDocument();
     expect(within(panel).getByText('New Delivery')).toBeInTheDocument();
     // Submit sits in the form's footer, after the last section
     const submit = within(panel).getByRole('button', { name: /Submit for approval/i });

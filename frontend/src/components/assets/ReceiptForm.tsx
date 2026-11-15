@@ -2087,7 +2087,31 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           Add vehicle details (chassis, plate, engine, accessories, tires)
         </button>
       ) : (
-        <Part title="Vehicle details">
+        <Part
+          title="Vehicle details"
+          aside={
+            !isVehicleLike ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVehicle(false);
+                  setChassisNumber('');
+                  setPlateNo('');
+                  setEngineNo('');
+                  setJackQty(0);
+                  setTireWrenchQty(0);
+                  setKeyQty(0);
+                  setReserveTyreQty(0);
+                  setCustomAccessories([]);
+                  setTireSerials('');
+                }}
+                className="text-xs text-slate-400 hover:text-rose-600 transition cursor-pointer"
+              >
+                Remove vehicle details
+              </button>
+            ) : undefined
+          }
+        >
           <div className="space-y-3.5">
             <FieldGrid>
               <Field label="Chassis number" optional htmlFor="stock-in-chassis">
