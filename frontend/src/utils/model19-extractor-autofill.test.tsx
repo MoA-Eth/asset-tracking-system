@@ -416,4 +416,41 @@ describe('Model 19 Autofill in ReceiptForm (StockInForm)', () => {
     expect(screen.getByDisplayValue('Staples-3/4 3/8')).toBeInTheDocument();
     expect(screen.getByDisplayValue('102101102.1304')).toBeInTheDocument();
   });
+
+  it('allows adding vehicle details and custom spare parts on Receive form (Model 19)', async () => {
+    const user = userEvent.setup();
+    render(
+      <StockInForm
+        locations={mockLocations}
+        employees={mockEmployees}
+        onCancel={vi.fn()}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    // Initially collapsed if category is not yet selected
+    const addVehicleBtn = screen.getByText(/Add vehicle details/i);
+    expect(addVehicleBtn).toBeInTheDocument();
+    await user.click(addVehicleBtn);
+
+    // Vehicle details section is revealed
+    expect(screen.getByText('Vehicle details')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Chassis number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Plate number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Engine number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Jack with handle/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tyre wrench/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Keys/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reserve tyre/i)).toBeInTheDocument();
+
+    // Click "+ Add custom spare part"
+    const addCustomPartBtn = screen.getByText(/Add custom spare part/i);
+    await user.click(addCustomPartBtn);
+
+    // Custom spare part inputs appear
+    const partInput = screen.getByPlaceholderText(/Fire extinguisher, First aid kit/i);
+    expect(partInput).toBeInTheDocument();
+    await user.type(partInput, 'Fire Extinguisher 2KG');
+    expect(partInput).toHaveValue('Fire Extinguisher 2KG');
+  });
 });

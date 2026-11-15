@@ -69,6 +69,37 @@ describe('StoreService.registerStockIn approval gate', () => {
     expect(result.approval).toBeDefined();
   });
 
+  it('records vehicle details, accessories and custom spare parts on stock-in', async () => {
+    const result = await StoreService.getInstance().registerStockIn({
+      ...basePayload,
+      isHistoricalData: true,
+      category: 'VEHICLE',
+      chassisNumber: 'JTEBB71JX07008920',
+      plateNo: '4-23794',
+      engineNo: '1HZ-0641864',
+      accessories: [
+        { name: 'jack with handle', quantity: 1 },
+        { name: 'tire wrench', quantity: 1 },
+        { name: 'Fire Extinguisher', quantity: 2 },
+      ],
+      tireNos: ['T-01', 'T-02'],
+    } as any);
+
+    const notes = JSON.parse(db.item.create.mock.calls[0][0].data.notes);
+    expect(notes.chassisNumber).toBe('JTEBB71JX07008920');
+    expect(notes.plateNo).toBe('4-23794');
+    expect(notes.engineNo).toBe('1HZ-0641864');
+    expect(notes.accessories).toEqual([
+      { name: 'jack with handle', quantity: 1 },
+      { name: 'tire wrench', quantity: 1 },
+      { name: 'Fire Extinguisher', quantity: 2 },
+    ]);
+    expect(notes.tireNos).toEqual(['T-01', 'T-02']);
+    expect(result.item.chassisNumber).toBe('JTEBB71JX07008920');
+    expect(result.item.plateNo).toBe('4-23794');
+    expect(result.item.accessories).toHaveLength(3);
+  });
+
   it('names a store man of the receiving store as who received the goods, not whoever typed the receipt, and not a typed name', async () => {
     await StoreService.getInstance().registerStockIn({ ...basePayload, isHistoricalData: true } as any);
     expect(JSON.parse(db.item.create.mock.calls[0][0].data.notes).receivedBy).toBe('Store Man');

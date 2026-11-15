@@ -83,4 +83,21 @@ describe('SlipUnitCost', () => {
     fireEvent.click(viewBtn);
     expect(onViewDetails).toHaveBeenCalledTimes(1);
   });
+
+  it('opens Unit Cost Details popover on hover to show unit prices', () => {
+    const item1 = row('1', 'IN_STORE', undefined, 25000);
+    const item2 = row('2', 'IN_STORE', undefined, 50000);
+
+    render(<SlipUnitCost rows={[item1, item2]} />);
+
+    const badge = screen.getByText('Multi-rate');
+    expect(screen.queryByText('Unit Cost Details')).not.toBeInTheDocument();
+
+    // Hover over the badge
+    fireEvent.mouseEnter(badge);
+
+    expect(screen.getByText('Unit Cost Details')).toBeInTheDocument();
+    expect(screen.getByText('ETB 50,000.00')).toBeInTheDocument();
+    expect(screen.getByText('ETB 25,000.00')).toBeInTheDocument();
+  });
 });

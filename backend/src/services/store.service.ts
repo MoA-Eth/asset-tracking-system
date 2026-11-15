@@ -139,6 +139,11 @@ function mapItem(raw: any): ItemWithRelations {
     deliveredBy: model19Meta.deliveredBy || raw.deliveredBy || undefined,
     receivedBy: model19Meta.receivedBy || raw.receivedBy || undefined,
     remark: model19Meta.remark || raw.remark || undefined,
+    chassisNumber: model19Meta.chassisNumber || undefined,
+    plateNo: model19Meta.plateNo || undefined,
+    engineNo: model19Meta.engineNo || undefined,
+    accessories: model19Meta.accessories || undefined,
+    tireNos: model19Meta.tireNos || undefined,
 
     history: (raw.history ?? []).map((h: any) => ({
       id: h.id,
@@ -1939,7 +1944,7 @@ export class StoreService {
       const category = (lineItem.category || payload.category || AssetCategory.IT_EQUIPMENT) as AssetCategory;
       const itemType = receiptLineType(lineItem, payload);
       const itemCode = lineItem.itemCode?.trim() || await generateItemCode(category, currentYear);
-      const serialNumber = String(lineItem.serialNumber ?? '').trim();
+      const serialNumber = String(lineItem.serialNumber ?? (i === 0 ? payload.serialNumber : '') ?? (lineItem as any).chassisNumber ?? payload.chassisNumber ?? '').trim();
       const unitCost = Number(lineItem.unitCostETB) || 0;
       const quantity = Number(lineItem.quantity) || 1;
       const baseAmount = unitCost * quantity;
@@ -1969,6 +1974,11 @@ export class StoreService {
         receivedBy: payload.receivedBy?.trim() || undefined,
         remark: lineItem.remark || payload.remark,
         userNotes: payload.notes,
+        chassisNumber: (lineItem as any).chassisNumber?.trim() || payload.chassisNumber?.trim() || undefined,
+        plateNo: (lineItem as any).plateNo?.trim() || payload.plateNo?.trim() || undefined,
+        engineNo: (lineItem as any).engineNo?.trim() || payload.engineNo?.trim() || undefined,
+        accessories: (lineItem as any).accessories || payload.accessories || undefined,
+        tireNos: (lineItem as any).tireNos || payload.tireNos || undefined,
       };
 
       const newItem = await prisma.item.create({
@@ -2164,6 +2174,11 @@ export class StoreService {
       receivedBy: payload.receivedBy?.trim() || previousMeta.receivedBy || undefined,
       remark,
       userNotes: remark,
+      chassisNumber: payload.chassisNumber !== undefined ? payload.chassisNumber?.trim() || undefined : previousMeta.chassisNumber,
+      plateNo: payload.plateNo !== undefined ? payload.plateNo?.trim() || undefined : previousMeta.plateNo,
+      engineNo: payload.engineNo !== undefined ? payload.engineNo?.trim() || undefined : previousMeta.engineNo,
+      accessories: payload.accessories !== undefined ? payload.accessories : previousMeta.accessories,
+      tireNos: payload.tireNos !== undefined ? payload.tireNos : previousMeta.tireNos,
     };
 
     const slipDateGc = payload.ifmisSlipDateGc || item.ifmisSlipDateGc;

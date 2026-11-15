@@ -194,6 +194,11 @@ export interface Item {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 export interface Model19LineItem {
@@ -214,6 +219,11 @@ export interface Model19LineItem {
   additionalCharges?: number;
   totalAmount: number;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 /** How goods on a Model 19 were provided: bought on a PO, or donated (no PO, supplier, buyer or price) */
@@ -255,6 +265,11 @@ export interface Model22LineItem {
   unitPrice: number;
   totalAmount: number;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 export interface Model22Voucher {
@@ -505,6 +520,11 @@ export interface CreateStockInRequest {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 
   /**
    * When `true`, bypasses the cross-voucher duplicate warning and registers the
@@ -535,6 +555,11 @@ export interface CreateStockInRequest {
     vatApplicable?: boolean;
     additionalCharges?: number;
     remark?: string;
+    chassisNumber?: string;
+    plateNo?: string;
+    engineNo?: string;
+    accessories?: Model21Accessory[];
+    tireNos?: string[];
   }>;
 }
 
@@ -576,6 +601,11 @@ export interface UpdateStockInRequest {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 export interface CreateStockOutRequest {

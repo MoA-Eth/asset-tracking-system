@@ -753,6 +753,34 @@ export const AssetRecord: React.FC<AssetRecordProps> = ({
                 </div>
               </FormKitField>
 
+              {item.chassisNumber && (
+                <FormKitField label="Chassis number" optional>
+                  <ReadOnlyValue mono>{item.chassisNumber}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {item.plateNo && (
+                <FormKitField label="Plate number" optional>
+                  <ReadOnlyValue mono>{item.plateNo}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {item.engineNo && (
+                <FormKitField label="Engine number" optional>
+                  <ReadOnlyValue mono>{item.engineNo}</ReadOnlyValue>
+                </FormKitField>
+              )}
+              {!!item.accessories?.length && (
+                <FormKitField label="Accessories & spare parts" optional span="sm:col-span-2">
+                  <ReadOnlyValue>
+                    {item.accessories.map((a) => `${a.name} (qty: ${a.quantity})`).join(', ')}
+                  </ReadOnlyValue>
+                </FormKitField>
+              )}
+              {!!item.tireNos?.length && (
+                <FormKitField label="Tyre serial numbers" optional span="sm:col-span-2">
+                  <ReadOnlyValue mono>{item.tireNos.join(', ')}</ReadOnlyValue>
+                </FormKitField>
+              )}
+
               <FormKitField label="Quantity" optional>
                 <ReadOnlyValue mono>
                   {/* What the Model 19 brought in: with some disposed of since, also what is still on the register */}

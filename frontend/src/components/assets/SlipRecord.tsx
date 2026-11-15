@@ -201,16 +201,43 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
   });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
 
   const costGroups = useMemo(() => {
-    const map = new Map<string, { cost: number; count: number; isUnpriced: boolean }>();
+    const map = new Map<string, { cost: number; count: number; isUnpriced: boolean; itemNames: string[] }>();
     for (const r of rows) {
       const raw = costOf(r.item);
       const c = Math.round(raw * 100) / 100;
       const isUnpriced = c <= 0;
       const key = isUnpriced ? 'UNPRICED' : String(c);
-      const existing = map.get(key) ?? { cost: c, count: 0, isUnpriced };
+      const existing = map.get(key) ?? { cost: c, count: 0, isUnpriced, itemNames: [] };
       existing.count += 1;
+      if (r.item.name && !existing.itemNames.includes(r.item.name)) {
+        existing.itemNames.push(r.item.name);
+      }
       map.set(key, existing);
     }
     return [...map.values()].sort((a, b) => {
@@ -278,12 +305,20 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5 justify-end whitespace-nowrap">
+    <div
+      className="inline-flex items-center gap-1.5 justify-end whitespace-nowrap"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
         ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
           setOpen((v) => !v);
         }}
         aria-expanded={open}
@@ -305,13 +340,15 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
         createPortal(
           <div
             ref={popoverRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             style={{
               position: 'fixed',
               top: `${pos.top}px`,
               left: `${pos.left}px`,
               zIndex: 9999,
             }}
-            className="w-60 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl ring-1 ring-black/5 text-left animate-in fade-in zoom-in-95 duration-150"
+            className="w-64 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl ring-1 ring-black/5 text-left animate-in fade-in zoom-in-95 duration-150"
           >
             <div
               className={`absolute h-2.5 w-2.5 rotate-45 border-slate-200 bg-white ${
@@ -319,22 +356,35 @@ export const SlipUnitCost: React.FC<SlipUnitCostProps> = ({ rows, isOpen, onView
               }`}
               style={{ left: `${pos.arrowOffset}px` }}
             />
-            <h4 className="text-xs font-bold text-slate-800 tracking-tight">Unit Cost Details</h4>
-            <div className="space-y-2 mt-2.5 mb-3">
+            <div className="flex items-center justify-between pb-1">
+              <h4 className="text-xs font-bold text-slate-800 tracking-tight">Unit Cost Details</h4>
+              <span className="text-[10px] text-slate-400 font-medium">Distinct Rates</span>
+            </div>
+            <div className="space-y-2 mt-2 mb-3">
               {costGroups.map((g, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs">
-                  {g.isUnpriced ? (
-                    <span className="rounded bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/70">
-                      Varies
+                <div key={idx} className="space-y-0.5">
+                  <div className="flex items-center justify-between text-xs">
+                    {g.isUnpriced ? (
+                      <span className="rounded bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/70">
+                        Varies
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-slate-800 tabular-nums">
+                        {formatETB(g.cost)}
+                      </span>
+                    )}
+                    <span className="text-slate-500 tabular-nums text-xs">
+                      {g.count} {g.count === 1 ? 'item' : 'items'}
                     </span>
-                  ) : (
-                    <span className="font-semibold text-slate-800 tabular-nums">
-                      {formatETB(g.cost)}
-                    </span>
+                  </div>
+                  {g.itemNames.length > 0 && (
+                    <div
+                      className="text-[11px] text-slate-500 truncate max-w-[220px]"
+                      title={g.itemNames.join(', ')}
+                    >
+                      {g.itemNames.join(', ')}
+                    </div>
                   )}
-                  <span className="text-slate-500 tabular-nums text-xs">
-                    {g.count} {g.count === 1 ? 'item' : 'items'}
-                  </span>
                 </div>
               ))}
             </div>

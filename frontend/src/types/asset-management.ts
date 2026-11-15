@@ -313,6 +313,11 @@ export interface Item {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 export interface Model19LineItem {
@@ -334,6 +339,11 @@ export interface Model19LineItem {
   additionalCharges?: number;
   totalAmount: number;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 
@@ -388,6 +398,11 @@ export interface Model22LineItem {
   unitPrice: number;
   totalAmount: number;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 /** One asset as its holder sees it on "My assets": no costs, notes or other people's names */
@@ -689,6 +704,11 @@ export interface CreateStockInRequest {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 
   /** When true, registers the item even if a similarly-named item at the same price exists in the store */
   allowDuplicate?: boolean;
@@ -714,6 +734,11 @@ export interface CreateStockInRequest {
     vatApplicable?: boolean;
     additionalCharges?: number;
     remark?: string;
+    chassisNumber?: string;
+    plateNo?: string;
+    engineNo?: string;
+    accessories?: Model21Accessory[];
+    tireNos?: string[];
   }>;
 }
 
@@ -754,6 +779,11 @@ export interface UpdateStockInRequest {
   deliveredBy?: string;
   receivedBy?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
 }
 
 export interface CreateStockOutRequest {

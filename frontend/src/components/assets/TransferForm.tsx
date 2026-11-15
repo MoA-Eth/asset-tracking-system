@@ -207,16 +207,19 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
     );
     if (item && item.status === ItemStatus.AVAILABLE) setReturnToId('');
     if (key === rows[0]?.key && item) {
-      setChassisNumber(item.serialNumber || '');
-      setPlateNo('');
-      setEngineNo('');
-      setTireSerials('');
+      setChassisNumber(item.chassisNumber || item.serialNumber || '');
+      setPlateNo(item.plateNo || '');
+      setEngineNo(item.engineNo || '');
+      setTireSerials(item.tireNos?.join(', ') || '');
       setDefectRemark('');
-      setJackQty(0);
-      setTireWrenchQty(0);
-      setKeyQty(0);
-      setReserveTyreQty(0);
-      setCustomAccessories([]);
+      setJackQty(item.accessories?.find((a) => a.name.toLowerCase().trim() === 'jack with handle')?.quantity ?? 0);
+      setTireWrenchQty(item.accessories?.find((a) => a.name.toLowerCase().trim() === 'tire wrench')?.quantity ?? 0);
+      setKeyQty(item.accessories?.find((a) => a.name.toLowerCase().trim() === 'key')?.quantity ?? 0);
+      setReserveTyreQty(item.accessories?.find((a) => a.name.toLowerCase().trim() === 'reserve tyre')?.quantity ?? 0);
+      const custom = item.accessories
+        ?.filter((a) => !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim()))
+        .map((a, idx) => ({ id: `init-${idx}`, name: a.name, quantity: a.quantity || 1 })) ?? [];
+      setCustomAccessories(custom);
     }
   };
 
@@ -235,18 +238,19 @@ export const TransferForm: React.FC<TransferFormProps> = ({ items, employees, de
   const [targetEmployeeId, setTargetEmployeeId] = useState(editTransfer?.recipientEmployeeId ?? '');
   const [targetDepartmentId, setTargetDepartmentId] = useState(editTransfer?.targetDepartmentId ?? '');
   const [targetLocationId, setTargetLocationId] = useState(editTransfer?.targetLocationId ?? '');
-  const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.serialNumber ?? '');
-  const [plateNo, setPlateNo] = useState(details.plateNo ?? '');
-  const [engineNo, setEngineNo] = useState(details.engineNo ?? '');
+  const [chassisNumber, setChassisNumber] = useState(details.chassisNumber ?? editItem?.chassisNumber ?? editItem?.serialNumber ?? '');
+  const [plateNo, setPlateNo] = useState(details.plateNo ?? editItem?.plateNo ?? '');
+  const [engineNo, setEngineNo] = useState(details.engineNo ?? editItem?.engineNo ?? '');
 
-  // Accessories start at zero: the encoder enters what was actually handed over
-  const [jackQty, setJackQty] = useState(qtyOf('jack with handle'));
-  const [tireWrenchQty, setTireWrenchQty] = useState(qtyOf('tire wrench'));
-  const [keyQty, setKeyQty] = useState(qtyOf('key'));
-  const [reserveTyreQty, setReserveTyreQty] = useState(qtyOf('reserve tyre'));
+  // Accessories start from request details, or from the item's own accessories
+  const [jackQty, setJackQty] = useState(() => qtyOf('jack with handle') || (editItem?.accessories?.find((a) => a.name.toLowerCase().trim() === 'jack with handle')?.quantity ?? 0));
+  const [tireWrenchQty, setTireWrenchQty] = useState(() => qtyOf('tire wrench') || (editItem?.accessories?.find((a) => a.name.toLowerCase().trim() === 'tire wrench')?.quantity ?? 0));
+  const [keyQty, setKeyQty] = useState(() => qtyOf('key') || (editItem?.accessories?.find((a) => a.name.toLowerCase().trim() === 'key')?.quantity ?? 0));
+  const [reserveTyreQty, setReserveTyreQty] = useState(() => qtyOf('reserve tyre') || (editItem?.accessories?.find((a) => a.name.toLowerCase().trim() === 'reserve tyre')?.quantity ?? 0));
   const [customAccessories, setCustomAccessories] = useState<CustomAccessoryItem[]>(() => {
-    if (!details.accessories || !Array.isArray(details.accessories)) return [];
-    return details.accessories
+    const rawAccs = details.accessories || editItem?.accessories;
+    if (!rawAccs || !Array.isArray(rawAccs)) return [];
+    return rawAccs
       .filter((a) => !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim()))
       .map((a, idx) => ({ id: `init-${idx}`, name: a.name, quantity: a.quantity || 1 }));
   });
