@@ -1703,7 +1703,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
   const firstRow = (
     <tr className="align-top hover:bg-slate-50/50 transition-colors">
       <td className={`px-2 py-2.5 font-mono text-slate-400 text-center text-xs ${rowText}`}>1</td>
-      <td className="px-3 py-2.5">
+      <td className="px-2.5 py-2.5">
         {/* The hidden labels sit outside the spaced stack, so item 1 is as tall as every other row */}
         <label htmlFor="stock-in-item-name" className="sr-only">Item description</label>
         <div className="space-y-1.5">
@@ -1737,7 +1737,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           )}
         </div>
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="stock-in-ifmis-code" className="sr-only">IFMIS item code</label>
         <div className="space-y-1">
           <input
@@ -1768,7 +1768,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           )}
         </div>
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="stock-in-category" className="sr-only">Category</label>
         <select
           id="stock-in-category"
@@ -1783,7 +1783,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           ))}
         </select>
       </td>
-      <td className="px-2 py-2.5">
+      <td className="px-1.5 py-2.5">
         <label htmlFor="stock-in-uom" className="sr-only">Unit of measure</label>
         <UomSelect
           id="stock-in-uom"
@@ -1794,7 +1794,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           invalid={!!fieldErrors.error('uom')}
         />
       </td>
-      <td className="px-2 py-2.5">
+      <td className="px-1.5 py-2.5">
         <label htmlFor="receipt-quantity" className="sr-only">Quantity</label>
         <QuantityInput
           id="receipt-quantity"
@@ -1806,7 +1806,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           className={cellClass({ align: 'center', mono: true })}
         />
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="stock-in-unit-cost" className="sr-only">Unit price (ETB)</label>
         <MoneyInput
           id="stock-in-unit-cost"
@@ -1819,7 +1819,7 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
         />
       </td>
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <label htmlFor="stock-in-addl-charges" className="sr-only">Additional charges (ETB)</label>
         <MoneyInput
           id="stock-in-addl-charges"
@@ -1833,11 +1833,11 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
           inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${vatApplicable ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
         />
       </td>
-      <td className={`px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
+      <td className={`px-2.5 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
         {money(totalAmount)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
         {vatApplicable && vat1 > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(vat1)}</span>}
       </td>
-      <td className="px-2 py-2.5 text-center" />
+      <td className="px-1 py-2.5 text-center" />
     </tr>
   );
 

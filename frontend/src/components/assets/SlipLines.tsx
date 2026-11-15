@@ -174,33 +174,33 @@ export const ReceiptItems: React.FC<{
     <div className="overflow-hidden rounded-md border border-slate-200">
       <div className="overflow-x-auto">
         {/* Fits a laptop screen (about 960 px) with the description as the widest column; narrower screens scroll */}
-        <table className="w-full min-w-[880px] text-xs table-fixed">
+        <table className="w-full min-w-[1020px] text-xs table-fixed">
           <colgroup>
-            <col style={{ width: '28px' }} />
+            <col style={{ width: '32px' }} />
             <col style={{ width: 'auto' }} />
-            <col style={{ width: '158px' }} />
-            <col style={{ width: '140px' }} />
-            <col style={{ width: '70px' }} />
-            <col style={{ width: '54px' }} />
+            <col style={{ width: '136px' }} />
+            <col style={{ width: '190px' }} />
+            <col style={{ width: '68px' }} />
+            <col style={{ width: '58px' }} />
             <col style={{ width: '96px' }} />
-            <col style={{ width: '82px' }} />
+            <col style={{ width: '86px' }} />
             <col style={{ width: '108px' }} />
-            <col style={{ width: '36px' }} />
+            <col style={{ width: '34px' }} />
           </colgroup>
           <thead className="bg-slate-50/90 border-b border-slate-200/90 shadow-2xs">
             <tr className="text-xs font-semibold text-slate-600">
               <th className="px-2 py-2.5 text-center">#</th>
-              <th className="px-3 py-2.5 text-left">Item description</th>
-              <th className="px-3 py-2.5 text-left" title={donation ? 'Optional for donations' : undefined}>
+              <th className="px-2.5 py-2.5 text-left">Item description</th>
+              <th className="px-2 py-2.5 text-left" title={donation ? 'Optional for donations' : undefined}>
                 IFMIS item code{donation ? ' (opt.)' : ''}
               </th>
-              <th className="px-3 py-2.5 text-left">Category</th>
-              <th className="px-2 py-2.5 text-center">Unit</th>
-              <th className="px-2 py-2.5 text-center">Qty</th>
-              <th className="px-3 py-2.5 text-right">Unit price</th>
-              <th className="px-3 py-2.5 text-right" title="Transport, installation and other charges; not with VAT">Other charges</th>
-              <th className="px-3 py-2.5 text-right">Total</th>
-              <th className="px-2 py-2.5 text-center" />
+              <th className="px-2 py-2.5 text-left">Category</th>
+              <th className="px-1.5 py-2.5 text-center">Unit</th>
+              <th className="px-1.5 py-2.5 text-center">Qty</th>
+              <th className="px-2 py-2.5 text-right">Unit price</th>
+              <th className="px-2 py-2.5 text-right" title="Transport, installation and other charges; not with VAT">Other charges</th>
+              <th className="px-2.5 py-2.5 text-right">Total</th>
+              <th className="px-1 py-2.5 text-center" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -214,7 +214,7 @@ export const ReceiptItems: React.FC<{
               return (
                 <tr key={l.key} className="align-top hover:bg-slate-50/50 transition-colors">
                   <td className={`px-2 py-2.5 font-mono text-slate-400 text-center text-xs ${rowText}`}>{n}</td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2.5 py-2.5">
                     <div className="space-y-1.5">
                       <input
                         aria-label={`Item ${n} description`}
@@ -234,7 +234,7 @@ export const ReceiptItems: React.FC<{
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <div className="space-y-1">
                       <input
                         aria-label={`Item ${n} item code`}
@@ -257,7 +257,7 @@ export const ReceiptItems: React.FC<{
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <select
                       aria-label={`Item ${n} category`}
                       value={l.category}
@@ -270,7 +270,7 @@ export const ReceiptItems: React.FC<{
                       ))}
                     </select>
                   </td>
-                  <td className="px-2 py-2.5">
+                  <td className="px-1.5 py-2.5">
                     <UomSelect
                       ariaLabel={`Item ${n} unit`}
                       value={l.uom}
@@ -278,7 +278,7 @@ export const ReceiptItems: React.FC<{
                       invalid={!l.uom.trim()}
                     />
                   </td>
-                  <td className="px-2 py-2.5">
+                  <td className="px-1.5 py-2.5">
                     <input
                       aria-label={`Item ${n} quantity`}
                       inputMode="numeric"
@@ -292,7 +292,7 @@ export const ReceiptItems: React.FC<{
                       className={cellClass({ align: 'center', mono: true, invalid: !(l.quantity > 0) })}
                     />
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <MoneyInput
                       aria-label={`Item ${n} unit price`}
                       suffix=""
@@ -302,7 +302,7 @@ export const ReceiptItems: React.FC<{
                       inputClassName="!h-9 !px-2.5 !text-xs font-medium !rounded-md"
                     />
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <MoneyInput
                       aria-label={`Item ${n} additional charges`}
                       suffix=""
@@ -314,11 +314,11 @@ export const ReceiptItems: React.FC<{
                       inputClassName={`!h-9 !px-2.5 !text-xs !rounded-md ${isVat ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60' : ''}`}
                     />
                   </td>
-                  <td className={`px-3 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
+                  <td className={`px-2.5 py-2.5 text-right font-mono tabular-nums text-slate-800 font-semibold text-xs whitespace-nowrap ${rowText}`}>
                     {money(lineTotal)} <span className="text-[10px] text-slate-400 font-normal">ETB</span>
                     {isVat && lineVat > 0 && <span className="block text-[10px] font-normal text-emerald-700">incl. VAT {money(lineVat)}</span>}
                   </td>
-                  <td className="px-1.5 pb-2.5 pt-4 text-center">
+                  <td className="px-1 pb-2.5 pt-4 text-center">
                     <button
                       type="button"
                       onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
