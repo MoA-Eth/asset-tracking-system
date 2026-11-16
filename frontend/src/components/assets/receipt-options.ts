@@ -4,9 +4,10 @@ import { AssetCategory, ItemType, ProvisionType } from '../../types/asset-manage
 export const TRANSACTION_TYPES = ['PO Receipt', 'Petty Cash Purchase Receipt', 'Direct Delivery', 'Donation / Grant Receipt', 'Transfer Receipt', 'Internal Production', 'Inventory Count (ቆጠራ)'];
 
 /**
- * Vehicle parts & accessories as a category of their own: offered alongside Vehicles everywhere.
+ * Vehicle parts & accessories as a category of their own is off for now: they stay with the vehicles, in Vehicles with
+ * Accessories (choosing it in a filter lists the vehicles themselves). Set to true to offer the category again.
  */
-export const SHOW_VEHICLE_PARTS = true;
+export const SHOW_VEHICLE_PARTS = false;
 
 /** Categories that hold machines with their accessories: chosen in a filter, they list the machines themselves */
 const MACHINES_ONLY: string[] = [AssetCategory.VEHICLE, AssetCategory.AGRI_MACHINERY];
@@ -102,8 +103,8 @@ export const COMMON_CATEGORIES = [
   { value: AssetCategory.IT_EQUIPMENT, label: 'IT Equipment & Accessories' },
   { value: AssetCategory.AGRI_MACHINERY, label: 'Agricultural Machinery with Accessories' },
   { value: AssetCategory.LAB_EQUIPMENT, label: 'Medical & Lab Supplies' },
-  { value: AssetCategory.VEHICLE, label: 'Vehicles' },
-  { value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' },
+  { value: AssetCategory.VEHICLE, label: 'Vehicles with Accessories' },
+  ...(SHOW_VEHICLE_PARTS ? [{ value: AssetCategory.VEHICLE_PARTS, label: 'Vehicle Parts & Accessories' }] : []),
   { value: AssetCategory.OFFICE_FURNITURE, label: 'Office Furniture & Fixtures' },
   { value: AssetCategory.FIELD_GEAR, label: 'Field Gear & Uniforms' },
   { value: AssetCategory.TOOLS_EQUIPMENT, label: 'Tools & Equipment' },

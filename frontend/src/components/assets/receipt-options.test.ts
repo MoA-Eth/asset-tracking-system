@@ -18,24 +18,21 @@ describe('IFMIS item categories', () => {
     expect(categoryOf('Something unknown')).toBeUndefined();
   });
 
-  it('files vehicle spare parts and accessories under Vehicle Parts & Accessories, and vehicles under Vehicles', () => {
-    expect(categoryOf('Vehicle Spare Parts')).toBe(AssetCategory.VEHICLE_PARTS);
-    expect(categoryOf('Vehicle accessories')).toBe(AssetCategory.VEHICLE_PARTS);
-    expect(categoryOf('Tyres and tubes')).toBe(AssetCategory.VEHICLE_PARTS);
+  it('files vehicle spare parts and accessories with the vehicles, in Vehicles with Accessories', () => {
+    expect(categoryOf('Vehicle Spare Parts')).toBe(AssetCategory.VEHICLE);
+    expect(categoryOf('Vehicle accessories')).toBe(AssetCategory.VEHICLE);
+    expect(categoryOf('Tyres and tubes')).toBe(AssetCategory.VEHICLE);
     expect(categoryOf('Vehicles & Transport')).toBe(AssetCategory.VEHICLE);
     // Computer accessories stay with IT
     expect(categoryOf('Computer accessories')).toBe(AssetCategory.IT_EQUIPMENT);
   });
 
-  it('lists the vehicles only when Vehicles is chosen in a filter', () => {
+  it('lists the vehicles only when Vehicles with Accessories is chosen in a filter', () => {
     expect(inCategory({ category: 'VEHICLE', itemType: 'FIXED' }, 'VEHICLE')).toBe(true);
     expect(inCategory({ category: 'VEHICLE', itemType: 'CONSUMABLE' }, 'VEHICLE')).toBe(false);
     // Still counted everywhere else: no category chosen, or another category's own consumables
     expect(inCategory({ category: 'VEHICLE', itemType: 'CONSUMABLE' }, 'ALL')).toBe(true);
     expect(inCategory({ category: 'OFFICE_SUPPLIES', itemType: 'CONSUMABLE' }, 'OFFICE_SUPPLIES')).toBe(true);
-    // Vehicle Parts & Accessories lists parts whether fixed or consumable
-    expect(inCategory({ category: 'VEHICLE_PARTS', itemType: 'CONSUMABLE' }, 'VEHICLE_PARTS')).toBe(true);
-    expect(inCategory({ category: 'VEHICLE_PARTS', itemType: 'FIXED' }, 'VEHICLE_PARTS')).toBe(true);
     // Agricultural Machinery with Accessories likewise lists the machinery
     expect(inCategory({ category: 'AGRI_MACHINERY', itemType: 'FIXED' }, 'AGRI_MACHINERY')).toBe(true);
     expect(inCategory({ category: 'AGRI_MACHINERY', itemType: 'CONSUMABLE' }, 'AGRI_MACHINERY')).toBe(false);

@@ -586,7 +586,7 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({ onNavigate }) => {
       return false;
     }
 
-    // Vehicles lists the vehicles themselves
+    // Vehicles with Accessories lists the vehicles themselves
     if (!inCategory(row.item, cat)) {
       return false;
     }
