@@ -23,6 +23,11 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
   // A Model 22 used to write units off prints as a disposal: no recipient, and the reason instead
   const disposal = voucher.transactionType === 'Disposal';
 
+  // Vehicle particulars when any vehicle is on the voucher
+  const vehicleItem = voucher.items.find((it) => it.plateNo || it.engineNo || it.accessories?.length || it.tireNos?.length);
+  const cleanRemark = formatVoucherRemark(vehicleItem?.remark);
+  const hasParticulars = !!vehicleItem && !!(vehicleItem.plateNo || vehicleItem.engineNo || vehicleItem.accessories?.length || vehicleItem.tireNos?.length || cleanRemark);
+
   return (
     <VoucherShell
       isOpen={isOpen}
@@ -102,6 +107,62 @@ export const Model22PrintModal: React.FC<Model22PrintModalProps> = ({ isOpen, on
           </tbody>
         </table>
       </div>
+
+      {hasParticulars && vehicleItem && (
+        <div className="border border-slate-400 print:border-black p-3 text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            {vehicleItem.plateNo && (
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold text-slate-800 min-w-[80px]">Plate No</span>
+                <span className="font-mono font-semibold text-slate-950">{vehicleItem.plateNo}</span>
+              </div>
+            )}
+            {vehicleItem.engineNo && (
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold text-slate-800 min-w-[80px]">Engine No</span>
+                <span className="font-mono font-semibold text-slate-950">{vehicleItem.engineNo}</span>
+              </div>
+            )}
+            {vehicleItem.chassisNumber && (
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold text-slate-800 min-w-[80px]">Chassis No</span>
+                <span className="font-mono font-semibold text-slate-950">{vehicleItem.chassisNumber}</span>
+              </div>
+            )}
+            {!!vehicleItem.accessories?.length && (
+              <div className="pt-1">
+                <span className="font-bold text-slate-800 block mb-1">Accessory</span>
+                <div className="space-y-0.5">
+                  {vehicleItem.accessories.map((acc, idx) => (
+                    <div key={idx} className="flex justify-between max-w-[200px] text-slate-900">
+                      <span>{acc.name}</span>
+                      <span className="font-mono font-bold">{acc.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            {!!vehicleItem.tireNos?.length && (
+              <>
+                <span className="font-bold text-slate-800 block mb-1">tire no</span>
+                <div className="space-y-0.5 font-mono text-slate-900">
+                  {vehicleItem.tireNos.map((tire, idx) => <div key={idx}>{tire}</div>)}
+                </div>
+              </>
+            )}
+          </div>
+          <div>
+            {cleanRemark && (
+              <>
+                <span className="font-bold text-slate-800 block mb-1">Remark</span>
+                <div className="text-slate-700 whitespace-pre-wrap">{cleanRemark}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <VoucherTotals
         rows={[

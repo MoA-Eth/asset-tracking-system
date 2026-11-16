@@ -1,6 +1,6 @@
 import { getEndorserSignatory, getAuthorizerSignatory } from '../../utils/approver-signatures';
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, X } from 'lucide-react';
+import { FileText, Plus, X, Car } from 'lucide-react';
 import { api } from '../../api/client';
 import { StoreManField } from './StoreManField';
 import { useStoreKeepers, nameKey } from '../../hooks/useStoreKeepers';
@@ -9,7 +9,7 @@ import { useSlipRegister, usedMessage, isSameAsset } from '../../hooks/useSlipRe
 import { FieldGrid, Field, FormError, FormNotice, FileDropField, FormFooter, QuantityInput, inputClass, MoneyInput, useFieldErrors, submitOnCtrlEnter } from '../ui/FormKit';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
-import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher, Organization } from '../../types/asset-management';
+import { ItemWithRelations, TransactionApproval, Department, Employee, Model22Voucher, Organization, AssetCategory, Model21Accessory } from '../../types/asset-management';
 import { formatETB, formatGcToEc } from '../../utils/eth-date';
 import { costOf } from '../../utils/item-cost';
 import { departmentLabel, isUnassignedDepartment } from '../../utils/department';
@@ -84,6 +84,8 @@ const orgKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 // Items registered before units were recorded count in EA, as on the server
 const uomOf = (item?: ItemWithRelations) => item?.uom || 'EA';
 
+const PRESET_ACCESSORY_NAMES = new Set(['jack with handle', 'tire wrench', 'key', 'reserve tyre']);
+
 export const StockOutForm: React.FC<StockOutFormProps> = ({
   availableItems,
   departments,
@@ -148,8 +150,73 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
     const item = availableItems.find((i) => i.id === itemId);
     // Everything in store unless the slip said how many
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, itemId, quantity: r.slip?.quantity ?? unitsOf(item) } : r)));
+    if (item && (item.category === AssetCategory.VEHICLE || item.category === AssetCategory.AGRI_MACHINERY)) {
+      setChassisNumber(item.chassisNumber || item.serialNumber || '');
+      setPlateNo(item.plateNo || '');
+      setEngineNo(item.engineNo || '');
+      setTireSerials(item.tireNos?.join(', ') || '');
+      setJackQty(item.accessories?.find((a) => a.name?.toLowerCase().trim() === 'jack with handle')?.quantity ?? 0);
+      setTireWrenchQty(item.accessories?.find((a) => a.name?.toLowerCase().trim() === 'tire wrench')?.quantity ?? 0);
+      setKeyQty(item.accessories?.find((a) => a.name?.toLowerCase().trim() === 'key')?.quantity ?? 0);
+      setReserveTyreQty(item.accessories?.find((a) => a.name?.toLowerCase().trim() === 'reserve tyre')?.quantity ?? 0);
+      const custom = item.accessories
+        ?.filter((a) => a.name && !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim()))
+        .map((a, idx) => ({ id: `init-${idx}`, name: a.name, quantity: a.quantity || 1 })) ?? [];
+      setCustomAccessories(custom);
+      setShowVehicle(true);
+    }
   };
   const [transportationCost, setTransportationCost] = useState<number>(Number(editApproval?.requestDetails?.transportationCost) || 0);
+
+  // ── Vehicle details: for vehicles and machinery, when the item gives some, or when asked for
+  const [chassisNumber, setChassisNumber] = useState(() => (editApproval?.requestDetails as any)?.chassisNumber ?? editItem?.chassisNumber ?? startItem?.chassisNumber ?? '');
+  const [plateNo, setPlateNo] = useState(() => (editApproval?.requestDetails as any)?.plateNo ?? editItem?.plateNo ?? startItem?.plateNo ?? '');
+  const [engineNo, setEngineNo] = useState(() => (editApproval?.requestDetails as any)?.engineNo ?? editItem?.engineNo ?? startItem?.engineNo ?? '');
+  const [jackQty, setJackQty] = useState(() => ((editApproval?.requestDetails as any)?.accessories ?? editItem?.accessories ?? startItem?.accessories)?.find((a: any) => a.name?.toLowerCase().trim() === 'jack with handle')?.quantity ?? 0);
+  const [tireWrenchQty, setTireWrenchQty] = useState(() => ((editApproval?.requestDetails as any)?.accessories ?? editItem?.accessories ?? startItem?.accessories)?.find((a: any) => a.name?.toLowerCase().trim() === 'tire wrench')?.quantity ?? 0);
+  const [keyQty, setKeyQty] = useState(() => ((editApproval?.requestDetails as any)?.accessories ?? editItem?.accessories ?? startItem?.accessories)?.find((a: any) => a.name?.toLowerCase().trim() === 'key')?.quantity ?? 0);
+  const [reserveTyreQty, setReserveTyreQty] = useState(() => ((editApproval?.requestDetails as any)?.accessories ?? editItem?.accessories ?? startItem?.accessories)?.find((a: any) => a.name?.toLowerCase().trim() === 'reserve tyre')?.quantity ?? 0);
+  const [customAccessories, setCustomAccessories] = useState<{ id: string; name: string; quantity: number }[]>(() => {
+    const rawAccs = (editApproval?.requestDetails as any)?.accessories ?? editItem?.accessories ?? startItem?.accessories;
+    if (!rawAccs || !Array.isArray(rawAccs)) return [];
+    return rawAccs
+      .filter((a: any) => a.name && !PRESET_ACCESSORY_NAMES.has(a.name.toLowerCase().trim()))
+      .map((a: any, idx: number) => ({ id: `init-${idx}`, name: a.name, quantity: a.quantity || 1 }));
+  });
+  const [tireSerials, setTireSerials] = useState(() => ((editApproval?.requestDetails as any)?.tireNos ?? editItem?.tireNos ?? startItem?.tireNos)?.join(', ') ?? '');
+  const [defectRemark, setDefectRemark] = useState(() => (editApproval?.requestDetails as any)?.defectRemark ?? '');
+  const [showVehicle, setShowVehicle] = useState(() => !!(startItem?.category === AssetCategory.VEHICLE || startItem?.category === AssetCategory.AGRI_MACHINERY || editItem?.category === AssetCategory.VEHICLE || editItem?.category === AssetCategory.AGRI_MACHINERY || (editApproval?.requestDetails as any)?.chassisNumber || (editApproval?.requestDetails as any)?.plateNo));
+
+  const handleAddCustomAccessory = () => {
+    setCustomAccessories((prev) => [
+      ...prev,
+      { id: `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, name: '', quantity: 1 },
+    ]);
+  };
+
+  const handleUpdateCustomAccessory = (id: string, patch: Partial<{ name: string; quantity: number }>) => {
+    setCustomAccessories((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const handleRemoveCustomAccessory = (id: string) => {
+    setCustomAccessories((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const hasVehicleLike = rows.some((r) => {
+    const it = itemOf(r);
+    return it?.category === AssetCategory.VEHICLE || it?.category === AssetCategory.AGRI_MACHINERY;
+  });
+
+  const vehicleAccessories: Model21Accessory[] = [
+    { name: 'jack with handle', quantity: jackQty },
+    { name: 'tire wrench', quantity: tireWrenchQty },
+    { name: 'key', quantity: keyQty },
+    { name: 'reserve tyre', quantity: reserveTyreQty },
+    ...customAccessories
+      .filter((c) => c.name.trim() && c.quantity > 0)
+      .map((c) => ({ name: c.name.trim(), quantity: c.quantity })),
+  ].filter((a) => a.quantity > 0);
+  const tireList = tireSerials.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
 
   // ── Recipient
   const [destinationDepartmentId, setDestinationDepartmentId] = useState<string>(editApproval?.targetDepartmentId ?? '');
@@ -643,6 +710,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
           ifmisSlipAttachmentUrl: slipUrl,
           purpose: purpose.trim() || undefined,
           remark: remark.trim() || undefined,
+          chassisNumber: (hasVehicleLike || showVehicle) ? chassisNumber.trim() || undefined : undefined,
+          plateNo: (hasVehicleLike || showVehicle) ? plateNo.trim() || undefined : undefined,
+          engineNo: (hasVehicleLike || showVehicle) ? engineNo.trim() || undefined : undefined,
+          accessories: (hasVehicleLike || showVehicle) && vehicleAccessories.length > 0 ? vehicleAccessories : undefined,
+          tireNos: (hasVehicleLike || showVehicle) && tireList.length > 0 ? tireList : undefined,
         });
         toast.success('Issue request updated', `The request for ${editApproval.itemCode} was corrected. ${editApproval.status === 'REJECTED' ? 'It went back to the Team Leader for approval.' : 'It is still waiting for Team Leader endorsement.'}`);
         onSuccess(res.approval);
@@ -680,6 +752,12 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         transactionType: effectiveTransactionType,
         destination,
         transportationCost,
+        chassisNumber: (hasVehicleLike || showVehicle) ? chassisNumber.trim() || undefined : undefined,
+        plateNo: (hasVehicleLike || showVehicle) ? plateNo.trim() || undefined : undefined,
+        engineNo: (hasVehicleLike || showVehicle) ? engineNo.trim() || undefined : undefined,
+        accessories: (hasVehicleLike || showVehicle) && vehicleAccessories.length > 0 ? vehicleAccessories : undefined,
+        tireNos: (hasVehicleLike || showVehicle) && tireList.length > 0 ? tireList : undefined,
+        remark: defectRemark.trim() || undefined,
       };
       // One row is one request, as before; several rows of one Model 22 go together, all checked before any is saved
       const one = rows.length === 1;
@@ -727,6 +805,11 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
             unitPrice,
             totalAmount: unitPrice * r.quantity,
             remark: '',
+            chassisNumber: (hasVehicleLike || showVehicle) ? chassisNumber.trim() || item.chassisNumber || undefined : undefined,
+            plateNo: (hasVehicleLike || showVehicle) ? plateNo.trim() || item.plateNo || undefined : undefined,
+            engineNo: (hasVehicleLike || showVehicle) ? engineNo.trim() || item.engineNo || undefined : undefined,
+            accessories: (hasVehicleLike || showVehicle) && vehicleAccessories.length > 0 ? vehicleAccessories : item.accessories,
+            tireNos: (hasVehicleLike || showVehicle) && tireList.length > 0 ? tireList : item.tireNos,
           };
         }),
         total: totalAmount,
@@ -993,6 +1076,175 @@ export const StockOutForm: React.FC<StockOutFormProps> = ({
         {mixedStores && <p role="alert" className="text-[11px] font-medium text-rose-700">These items are in different stores. One Model 22 issues from one store: issue each store's items on its own.</p>}
       </Part>
 
+      {/* ── Vehicle and machinery details: chassis, plate, engine, accessories & spare parts ── */}
+      {!(showVehicle || hasVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim() || customAccessories.length > 0)) ? (
+        <button
+          type="button"
+          onClick={() => setShowVehicle(true)}
+          className="inline-flex items-center gap-1.5 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
+        >
+          <Car className="h-3.5 w-3.5" />
+          Add vehicle details (chassis, plate, engine, accessories, tires)
+        </button>
+      ) : (
+        <Part
+          title="Vehicle details"
+          aside={
+            !hasVehicleLike ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowVehicle(false);
+                  setChassisNumber('');
+                  setPlateNo('');
+                  setEngineNo('');
+                  setJackQty(0);
+                  setTireWrenchQty(0);
+                  setKeyQty(0);
+                  setReserveTyreQty(0);
+                  setCustomAccessories([]);
+                  setTireSerials('');
+                }}
+                className="text-xs text-slate-400 hover:text-rose-600 transition cursor-pointer"
+              >
+                Remove vehicle details
+              </button>
+            ) : undefined
+          }
+        >
+          <div className="space-y-3.5">
+            <FieldGrid>
+              <Field label="Chassis number" optional htmlFor="stock-out-chassis">
+                <input
+                  id="stock-out-chassis"
+                  type="text"
+                  placeholder="e.g. JTEBB71JX07008920"
+                  value={chassisNumber}
+                  onChange={(e) => setChassisNumber(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+              <Field label="Plate number" optional htmlFor="stock-out-plate">
+                <input
+                  id="stock-out-plate"
+                  type="text"
+                  placeholder="e.g. 4-23794"
+                  value={plateNo}
+                  onChange={(e) => setPlateNo(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+              <Field label="Engine number" optional htmlFor="stock-out-engine">
+                <input
+                  id="stock-out-engine"
+                  type="text"
+                  placeholder="e.g. 1HZ-0641864"
+                  value={engineNo}
+                  onChange={(e) => setEngineNo(e.target.value)}
+                  className={input({ mono: true })}
+                />
+              </Field>
+            </FieldGrid>
+
+            <FieldGrid cols={4}>
+              <Field label="Jack with handle (qty)" htmlFor="stock-out-jack">
+                <QuantityInput id="stock-out-jack" value={jackQty} onChange={setJackQty} />
+              </Field>
+              <Field label="Tyre wrench (qty)" htmlFor="stock-out-wrench">
+                <QuantityInput id="stock-out-wrench" value={tireWrenchQty} onChange={setTireWrenchQty} />
+              </Field>
+              <Field label="Keys (qty)" htmlFor="stock-out-keys">
+                <QuantityInput id="stock-out-keys" value={keyQty} onChange={setKeyQty} />
+              </Field>
+              <Field label="Reserve tyre (qty)" htmlFor="stock-out-reserve">
+                <QuantityInput id="stock-out-reserve" value={reserveTyreQty} onChange={setReserveTyreQty} />
+              </Field>
+            </FieldGrid>
+
+            {/* Custom spare parts & accessories */}
+            <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-slate-700">Other spare parts & accessories</span>
+                  <p className="text-[11px] text-slate-500">Confirm or add additional vehicle spare parts, tools, or items handed over.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddCustomAccessory}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-800 transition cursor-pointer select-none"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add custom spare part</span>
+                </button>
+              </div>
+
+              {customAccessories.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  {customAccessories.map((part, index) => (
+                    <div
+                      key={part.id}
+                      className="flex items-center gap-2.5 p-2 bg-slate-50/80 border border-slate-200 rounded-md"
+                    >
+                      <div className="flex-1">
+                        <label htmlFor={`stock-out-custom-part-${part.id}`} className="sr-only">Spare part name</label>
+                        <input
+                          id={`stock-out-custom-part-${part.id}`}
+                          type="text"
+                          placeholder="e.g. Fire extinguisher, First aid kit, Jumper cables, Tool kit..."
+                          value={part.name}
+                          onChange={(e) => handleUpdateCustomAccessory(part.id, { name: e.target.value })}
+                          className={input({ mono: false })}
+                          aria-label={`Spare part name ${index + 1}`}
+                        />
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <QuantityInput
+                          id={`stock-out-custom-qty-${part.id}`}
+                          value={part.quantity}
+                          onChange={(q) => handleUpdateCustomAccessory(part.id, { quantity: q })}
+                          aria-label={`Quantity for ${part.name || 'custom part'}`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCustomAccessory(part.id)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                        title="Remove spare part"
+                        aria-label={`Remove spare part ${part.name || index + 1}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Field label="Tire serial numbers" optional htmlFor="stock-out-tires" hint="Comma- or line-separated">
+              <textarea
+                id="stock-out-tires"
+                rows={2}
+                placeholder="e.g. DOT4B10, DOT4B11, DOT4B12, DOT4B13"
+                value={tireSerials}
+                onChange={(e) => setTireSerials(e.target.value)}
+                className={input({ mono: true })}
+              />
+            </Field>
+
+            <Field label="Defects / remarks" optional htmlFor="stock-out-defects">
+              <textarea
+                id="stock-out-defects"
+                rows={2}
+                placeholder="Note any visible defects, scratches, or remarks before handing over"
+                value={defectRemark}
+                onChange={(e) => setDefectRemark(e.target.value)}
+                className={input()}
+              />
+            </Field>
+          </div>
+        </Part>
+      )}
+
       <Part title={isDisposal ? 'Reason and signatures' : 'Recipient and signatures'}>
         <FieldGrid cols={2}>
           {!isDisposal && (
@@ -1235,8 +1487,13 @@ export const buildModel22Voucher = (
       unitPrice,
       totalAmount: unitPrice * quantity,
       // The purpose isn't on the IFMIS Model 22, so the Remark column stays empty as there
-      remark: '',
+      remark: (r.requestDetails as any)?.defectRemark || '',
       transportationCost: Number(r.requestDetails?.transportationCost) || 0,
+      chassisNumber: (r.requestDetails as any)?.chassisNumber || item?.chassisNumber,
+      plateNo: (r.requestDetails as any)?.plateNo || item?.plateNo,
+      engineNo: (r.requestDetails as any)?.engineNo || item?.engineNo,
+      accessories: (r.requestDetails as any)?.accessories || item?.accessories,
+      tireNos: (r.requestDetails as any)?.tireNos || item?.tireNos,
     };
   });
   const totalAmount = lines.reduce((sum, l) => sum + l.totalAmount, 0);

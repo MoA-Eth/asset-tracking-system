@@ -1048,7 +1048,8 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
     fillFromModel19(parseModel19(rows));
   };
 
-  const isVehicleLike = category === AssetCategory.VEHICLE || category === AssetCategory.AGRI_MACHINERY || extraLines.some((l) => l.category === AssetCategory.VEHICLE || l.category === AssetCategory.AGRI_MACHINERY);
+  const isVehicleName = (n?: string) => /vehicle|car\b|truck|pickup|hilux|toyota|isuzu|land\s*cruiser|motor\s*cycle|motor\s*bike|tractor|station\s*wagon|automobile/i.test(n ?? '');
+  const isVehicleLike = category === AssetCategory.VEHICLE || category === AssetCategory.AGRI_MACHINERY || isVehicleName(name) || extraLines.some((l) => l.category === AssetCategory.VEHICLE || l.category === AssetCategory.AGRI_MACHINERY || isVehicleName(l.name));
 
   const vehicleAccessories: Model21Accessory[] = [
     { name: 'jack with handle', quantity: jackQty },
@@ -2078,14 +2079,25 @@ export const StockInForm: React.FC<StockInFormProps> = ({ locations, employees, 
 
       {/* ── Vehicle and machinery details: chassis, plate, engine, accessories & spare parts ── */}
       {!(showVehicle || isVehicleLike || !!(chassisNumber.trim() || plateNo.trim() || engineNo.trim() || tireSerials.trim() || customAccessories.length > 0)) ? (
-        <button
-          type="button"
-          onClick={() => setShowVehicle(true)}
-          className="inline-flex items-center gap-1.5 rounded-[4px] px-2 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 cursor-pointer"
-        >
-          <Car className="h-3.5 w-3.5" />
-          Add vehicle details (chassis, plate, engine, accessories, tires)
-        </button>
+        <div className="rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-emerald-100 rounded-md text-emerald-800">
+              <Car className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-800">Vehicle & Machinery Details</p>
+              <p className="text-[11px] text-slate-500">Record chassis number, plate, engine, accessories checklist, and spare parts.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowVehicle(true)}
+            className="inline-flex items-center gap-1.5 rounded-[4px] px-2.5 py-1 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 transition cursor-pointer shadow-sm select-none"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add vehicle details</span>
+          </button>
+        </div>
       ) : (
         <Part
           title="Vehicle details"

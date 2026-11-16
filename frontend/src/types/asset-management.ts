@@ -823,6 +823,11 @@ export interface CreateStockOutRequest {
   totalAmount?: number;
   transportationCost?: number;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
   /** Several lines of one Model 22: each is its own request with the details above (itemId and quantity are then per line) */
   lines?: { itemId: string; quantity: number }[];
 }
@@ -848,6 +853,11 @@ export interface UpdateStockOutRequest {
   /** Purpose of the issue (optional: it is not on the IFMIS Model 22); for a disposal, the reason (required) */
   purpose?: string;
   remark?: string;
+  chassisNumber?: string;
+  plateNo?: string;
+  engineNo?: string;
+  accessories?: Model21Accessory[];
+  tireNos?: string[];
   /** Units to issue; omit to keep the current quantity */
   quantity?: number;
 }
