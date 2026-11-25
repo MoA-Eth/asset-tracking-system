@@ -470,10 +470,10 @@ const DualMetricHeadline: React.FC<{
   consumables: number;
 }> = ({ fixed, consumables }) => (
   <div className="grid grid-cols-2 divide-x divide-slate-100">
-    <div className="min-w-0 pr-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+    <div className="min-w-0 pr-2.5">
+      <div className="flex items-center gap-1 text-[10.5px] font-semibold text-slate-600 whitespace-nowrap">
         <span className="h-2 w-2 rounded-full bg-sky-500 shrink-0" aria-hidden="true" />
-        <span className="truncate">Fixed</span>
+        <span>Fixed</span>
         <span className="text-[10px] font-normal text-slate-400 shrink-0">ቋሚ</span>
       </div>
       <div className="mt-1 flex items-baseline gap-1 whitespace-nowrap">
@@ -485,10 +485,10 @@ const DualMetricHeadline: React.FC<{
         </span>
       </div>
     </div>
-    <div className="min-w-0 pl-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+    <div className="min-w-0 pl-2.5">
+      <div className="flex items-center gap-1 text-[10.5px] font-semibold text-slate-600 whitespace-nowrap">
         <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" aria-hidden="true" />
-        <span className="truncate">Supplies</span>
+        <span>Consumables</span>
         <span className="text-[10px] font-normal text-slate-400 shrink-0">አላቂ</span>
       </div>
       <div className="mt-1 flex items-baseline gap-1 whitespace-nowrap">
@@ -1313,27 +1313,27 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </span>
           }
           subtext={
-            <div className="flex flex-col gap-1 text-[11px]">
-              <div className="flex items-center justify-between gap-2 text-slate-600">
-                <span className="flex items-center gap-1.5 min-w-0">
+            <div className="flex flex-col gap-1 text-[10.5px]">
+              <div className="flex items-center justify-between gap-1.5 text-slate-600">
+                <span className="flex items-center gap-1 whitespace-nowrap shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700 truncate">Fixed</span>
-                  <span className="text-[10px] text-slate-400 font-normal shrink-0">(ቋሚ)</span>
+                  <span className="font-medium text-slate-700">Fixed</span>
+                  <span className="text-[10px] text-slate-400 font-normal">ቋሚ</span>
                 </span>
                 <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
                   {formatETBShort(fixedAssets.valueETB)}
-                  <span className="text-[10px] text-slate-400 font-normal ml-1">({fixedValPct}%)</span>
+                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">({fixedValPct}%)</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 text-slate-600">
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700 truncate">Consumables</span>
-                  <span className="text-[10px] text-slate-400 font-normal shrink-0">(አላቂ)</span>
+              <div className="flex items-center justify-between gap-1.5 text-slate-600">
+                <span className="flex items-center gap-1 whitespace-nowrap shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shrink-0" aria-hidden />
+                  <span className="font-medium text-slate-700">Consumables</span>
+                  <span className="text-[10px] text-slate-400 font-normal">አላቂ</span>
                 </span>
                 <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
                   {formatETBShort(consumables.valueETB)}
-                  <span className="text-[10px] text-slate-400 font-normal ml-1">({consValPct}%)</span>
+                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">({consValPct}%)</span>
                 </span>
               </div>
             </div>
