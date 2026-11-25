@@ -918,8 +918,6 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
       ? (consumableStockItemsInStore / consumableStockItems) * 100
       : 0;
   const shareSubject = fixedAssets.units > 0 ? 'fixed assets' : 'consumables';
-  const fixedValPct = totalValuation > 0 ? Math.round((fixedAssets.valueETB / totalValuation) * 100) : 0;
-  const consValPct = totalValuation > 0 ? Math.round((consumables.valueETB / totalValuation) * 100) : 0;
   const fixedAssetsCount  = data?.fixedAssetsCount      || 0;
   const consumableCount   = data?.consumableCount       || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
@@ -1312,32 +1310,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
               <span>{formatETBShort(totalValuation).replace('ETB ', '')}</span>
             </span>
           }
-          subtext={
-            <div className="flex flex-col gap-1 text-[10.5px]">
-              <div className="flex items-center justify-between gap-1.5 text-slate-600">
-                <span className="flex items-center gap-1 whitespace-nowrap shrink-0">
-                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700">Fixed</span>
-                  <span className="text-[10px] text-slate-400 font-normal">ቋሚ</span>
-                </span>
-                <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
-                  {formatETBShort(fixedAssets.valueETB)}
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">({fixedValPct}%)</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-1.5 text-slate-600">
-                <span className="flex items-center gap-1 whitespace-nowrap shrink-0">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700">Consumables</span>
-                  <span className="text-[10px] text-slate-400 font-normal">አላቂ</span>
-                </span>
-                <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
-                  {formatETBShort(consumables.valueETB)}
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">({consValPct}%)</span>
-                </span>
-              </div>
-            </div>
-          }
+          subtext={<p className="text-[11px] text-slate-500">In store and in use</p>}
           footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
