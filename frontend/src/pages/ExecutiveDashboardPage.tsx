@@ -327,12 +327,24 @@ const StatTile: React.FC<{
   icon?: React.ElementType;
   tone?: Tone;
   trendBadge?: string;
+  trendTitle?: string;
   trendDirection?: 'up' | 'down' | 'neutral';
   className?: string;
   onClick?: () => void;
-}> = ({ label, labelAm, action, headline, value, subtext, tableData, footer, icon: Icon, tone = 'slate', trendBadge, trendDirection = 'up', className = '', onClick }) => {
+}> = ({ label, labelAm, action, headline, value, subtext, tableData, meterPct, footer, icon: Icon, tone = 'slate', trendBadge, trendTitle, trendDirection = 'up', className = '', onClick }) => {
   const t = TONES[tone];
   const displayHeadline = headline ?? value;
+  const barFill =
+    tone === 'emerald'
+      ? 'bg-emerald-500'
+      : tone === 'sky'
+      ? 'bg-blue-500'
+      : tone === 'violet'
+      ? 'bg-purple-500'
+      : tone === 'amber'
+      ? 'bg-amber-500'
+      : 'bg-slate-400';
+
   return (
     <div
       role="group"
@@ -347,21 +359,21 @@ const StatTile: React.FC<{
       {/* Top Accent Gradient Line */}
       <span className={`absolute inset-x-0 top-0 h-[3px] ${t.line}`} aria-hidden="true" />
 
-      <div>
-        {/* Top: Icon + Title + Big Headline Number */}
-        <div className="flex items-start gap-2.5 sm:gap-3">
+      <div className="min-w-0">
+        {/* Top: Icon + Title */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {Icon && (
-            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${t.chip} transition-transform group-hover:scale-105`}>
-              <Icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${t.chip} transition-transform group-hover:scale-105`}>
+              <Icon className="w-5 h-5" />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-600 tracking-wide truncate">
+            <div className="flex items-center justify-between gap-1">
+              <h3 className="text-xs font-semibold text-slate-700 tracking-wide truncate">
                 {label}
               </h3>
               {onClick && (
-                <span className="text-[10px] font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 ml-1">
+                <span className="text-[10px] font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
                   View <ArrowRight className="w-2.5 h-2.5" />
                 </span>
               )}
@@ -371,15 +383,17 @@ const StatTile: React.FC<{
                 {labelAm}
               </p>
             )}
-            <div className="mt-1 text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums whitespace-nowrap">
-              {displayHeadline}
-            </div>
           </div>
         </div>
 
-        {/* Separate full-width row for subtext so it never gets cut off */}
+        {/* Full-width headline so numbers never crowd or clip */}
+        <div className="mt-3 text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
+          {displayHeadline}
+        </div>
+
+        {/* Full-width subtext */}
         {subtext && (
-          <div className="mt-2 text-xs text-slate-500 font-medium">
+          <div className="mt-2.5 text-xs text-slate-500 font-medium">
             {subtext}
           </div>
         )}
@@ -388,68 +402,55 @@ const StatTile: React.FC<{
         {tableData && <div className="sr-only">{tableData}</div>}
       </div>
 
-      {/* Bottom: Smooth wave sparkline stretching across + trend badge */}
-      <div className="mt-3.5 pt-1 flex items-end justify-between">
-        <svg className="h-6 sm:h-7 w-24 sm:w-32 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
-          {trendDirection === 'down' ? (
-            <>
-              <path
-                d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20 L120 28 L0 28 Z"
-                fill={t.sparkFill}
-              />
-              <path
-                d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20"
-                stroke={t.sparkStroke}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-            </>
-          ) : trendDirection === 'neutral' ? (
-            <>
-              <path
-                d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14 L120 28 L0 28 Z"
-                fill={t.sparkFill}
-              />
-              <path
-                d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14"
-                stroke={t.sparkStroke}
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </>
-          ) : (
-            <>
-              <path
-                d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z"
-                fill={t.sparkFill}
-              />
-              <path
-                d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8"
-                stroke={t.sparkStroke}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-            </>
-          )}
-        </svg>
+      {/* Bottom: Share bar (when meterPct is given) or wave sparkline + badge */}
+      <div className="mt-3.5 pt-2.5 border-t border-slate-100/90 flex items-center justify-between gap-3">
+        {typeof meterPct === 'number' ? (
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+            <div
+              className={`h-full rounded-full ${barFill} transition-all duration-500`}
+              style={{ width: `${Math.max(meterPct > 0 ? 3 : 0, Math.min(100, meterPct))}%` }}
+            />
+          </div>
+        ) : (
+          <svg className="h-6 w-24 overflow-visible shrink-0" viewBox="0 0 120 28" fill="none" aria-hidden="true">
+            {trendDirection === 'down' ? (
+              <>
+                <path d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20 L120 28 L0 28 Z" fill={t.sparkFill} />
+                <path d="M0 8 C25 4, 45 22, 70 14 C95 6, 105 24, 120 20" stroke={t.sparkStroke} strokeWidth="2.5" strokeLinecap="round" />
+              </>
+            ) : trendDirection === 'neutral' ? (
+              <>
+                <path d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14 L120 28 L0 28 Z" fill={t.sparkFill} />
+                <path d="M0 14 C30 14, 60 14, 90 14 C105 14, 115 14, 120 14" stroke={t.sparkStroke} strokeWidth="2" strokeLinecap="round" />
+              </>
+            ) : (
+              <>
+                <path d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8 L120 28 L0 28 Z" fill={t.sparkFill} />
+                <path d="M0 20 C25 24, 45 6, 70 14 C95 22, 105 4, 120 8" stroke={t.sparkStroke} strokeWidth="2.5" strokeLinecap="round" />
+              </>
+            )}
+          </svg>
+        )}
 
         {trendBadge && (
           <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border ${
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${
               trendDirection === 'down'
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
                 : trendDirection === 'neutral'
                 ? 'bg-slate-50 text-slate-600 border-slate-200'
                 : t.badge
-            } shadow-2xs shrink-0`}
-            title={`30-day trend: ${trendDirection === 'down' ? '-' : trendDirection === 'up' ? '+' : ''}${trendBadge.replace(/^[↑+-\s]+/, '')}`}
+            } shadow-2xs shrink-0 whitespace-nowrap tabular-nums`}
+            title={trendTitle ?? `30-day trend: ${trendDirection === 'down' ? '-' : trendDirection === 'up' ? '+' : ''}${trendBadge.replace(/^[↑+-\s]+/, '')}`}
           >
-            {trendDirection === 'down' ? (
-              <TrendingDown className="w-3 h-3 text-current" />
-            ) : trendDirection === 'neutral' ? (
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" aria-hidden="true" />
-            ) : (
-              <TrendingUp className="w-3 h-3 text-current" />
+            {typeof meterPct !== 'number' && (
+              trendDirection === 'down' ? (
+                <TrendingDown className="w-3 h-3 text-current" />
+              ) : trendDirection === 'neutral' ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" aria-hidden="true" />
+              ) : (
+                <TrendingUp className="w-3 h-3 text-current" />
+              )
             )}
             <span>{trendBadge.replace(/^[↑+-\s]+/, '')}</span>
           </span>
@@ -462,6 +463,45 @@ const StatTile: React.FC<{
     </div>
   );
 };
+
+/** Clean 2-column metric split for Fixed assets and Supplies without duplicating rows */
+const DualMetricHeadline: React.FC<{
+  fixed: number;
+  consumables: number;
+}> = ({ fixed, consumables }) => (
+  <div className="grid grid-cols-2 divide-x divide-slate-100">
+    <div className="min-w-0 pr-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+        <span className="h-2 w-2 rounded-full bg-sky-500 shrink-0" aria-hidden="true" />
+        <span className="truncate">Fixed</span>
+        <span className="text-[10px] font-normal text-slate-400 shrink-0">ቋሚ</span>
+      </div>
+      <div className="mt-1 flex items-baseline gap-1 whitespace-nowrap">
+        <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight tabular-nums">
+          {fixed.toLocaleString()}
+        </span>
+        <span className="text-[11px] font-medium text-slate-400">
+          {fixed === 1 ? 'unit' : 'units'}
+        </span>
+      </div>
+    </div>
+    <div className="min-w-0 pl-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+        <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" aria-hidden="true" />
+        <span className="truncate">Supplies</span>
+        <span className="text-[10px] font-normal text-slate-400 shrink-0">አላቂ</span>
+      </div>
+      <div className="mt-1 flex items-baseline gap-1 whitespace-nowrap">
+        <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight tabular-nums">
+          {consumables.toLocaleString()}
+        </span>
+        <span className="text-[11px] font-medium text-slate-400">
+          {consumables === 1 ? 'item' : 'items'}
+        </span>
+      </div>
+    </div>
+  </div>
+);
 
 /** Stacked breakdown subtext so long numbers never get clipped horizontally */
 const BreakdownSubtext: React.FC<{
@@ -862,6 +902,24 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
     .filter(([n]) => n > 0)
     .map(([n, kind]) => `${n} ${kind}${n === 1 ? '' : 's'}`);
   const totalValuation    = data?.totalValuationETB     || 0;
+  const fixedTotal = Math.round(fixedAssets.units);
+  const fixedIssued = Math.round(fixedAssets.issuedUnits);
+  const fixedInStore = Math.round(fixedAssets.inStoreUnits);
+  const inUseShare =
+    fixedAssets.units > 0
+      ? (fixedAssets.issuedUnits / fixedAssets.units) * 100
+      : consumableStockItems > 0
+      ? (consumableStockItemsIssued / consumableStockItems) * 100
+      : 0;
+  const availableShare =
+    fixedAssets.units > 0
+      ? (fixedAssets.inStoreUnits / fixedAssets.units) * 100
+      : consumableStockItems > 0
+      ? (consumableStockItemsInStore / consumableStockItems) * 100
+      : 0;
+  const shareSubject = fixedAssets.units > 0 ? 'fixed assets' : 'consumables';
+  const fixedValPct = totalValuation > 0 ? Math.round((fixedAssets.valueETB / totalValuation) * 100) : 0;
+  const consValPct = totalValuation > 0 ? Math.round((consumables.valueETB / totalValuation) * 100) : 0;
   const fixedAssetsCount  = data?.fixedAssetsCount      || 0;
   const consumableCount   = data?.consumableCount       || 0;
   const issuedValuation   = data?.issuedValuationETB    || 0;
@@ -1199,22 +1257,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ ንብረቶች"
           icon={Boxes}
           tone="emerald"
+          meterPct={100}
           trendBadge="100%"
+          trendTitle="100% of assets on record (in store and in use)"
           trendDirection="neutral"
-          headline={
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
-                {Math.round(fixedAssets.units).toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
-              </span>
-              <span className="text-slate-300 font-light text-base">·</span>
-              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
-                {consumableStockItems.toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
-              </span>
-            </div>
-          }
-          subtext={<TypeRows fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
+          headline={<DualMetricHeadline fixed={fixedTotal} consumables={consumableStockItems} />}
+          subtext={<p className="text-[11px] text-slate-500">In store and in use</p>}
+          tableData={<TypeRows fixed={fixedTotal} consumables={consumableStockItems} />}
           footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
@@ -1223,22 +1272,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በአገልግሎት ላይ ያሉ ንብረቶች"
           icon={UserCheck}
           tone="sky"
-          trendBadge={`${fixedAssets.units > 0 ? ((fixedAssets.issuedUnits / fixedAssets.units) * 100).toFixed(1) : 0}%`}
+          meterPct={inUseShare}
+          trendBadge={`${inUseShare.toFixed(1)}%`}
+          trendTitle={`${inUseShare.toFixed(1)}% of ${shareSubject} currently in use`}
           trendDirection="up"
-          headline={
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
-                {Math.round(fixedAssets.issuedUnits).toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
-              </span>
-              <span className="text-slate-300 font-light text-base">·</span>
-              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
-                {consumableStockItemsIssued.toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
-              </span>
-            </div>
-          }
-          subtext={<TypeRows fixed={Math.round(fixedAssets.issuedUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsIssued} />}
+          headline={<DualMetricHeadline fixed={fixedIssued} consumables={consumableStockItemsIssued} />}
+          subtext={<p className="text-[11px] text-slate-500">Issued to staff &amp; directorates</p>}
+          tableData={<TypeRows fixed={fixedIssued} fixedOf={fixedTotal} consumables={consumableStockItemsIssued} />}
           footer="In use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
         />
@@ -1247,22 +1287,13 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመጋዘን ያሉ ንብረቶች"
           icon={Warehouse}
           tone="violet"
-          trendBadge={`${fixedAssets.units > 0 ? ((fixedAssets.inStoreUnits / fixedAssets.units) * 100).toFixed(1) : 0}%`}
+          meterPct={availableShare}
+          trendBadge={`${availableShare.toFixed(1)}%`}
+          trendTitle={`${availableShare.toFixed(1)}% of ${shareSubject} currently in store`}
           trendDirection="neutral"
-          headline={
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
-                {Math.round(fixedAssets.inStoreUnits).toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
-              </span>
-              <span className="text-slate-300 font-light text-base">·</span>
-              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
-                {consumableStockItemsInStore.toLocaleString()}
-                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
-              </span>
-            </div>
-          }
-          subtext={<TypeRows fixed={Math.round(fixedAssets.inStoreUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsInStore} />}
+          headline={<DualMetricHeadline fixed={fixedInStore} consumables={consumableStockItemsInStore} />}
+          subtext={<p className="text-[11px] text-slate-500">Ready in store for issue</p>}
+          tableData={<TypeRows fixed={fixedInStore} fixedOf={fixedTotal} consumables={consumableStockItemsInStore} />}
           footer="In store"
           onClick={canOpenAssets ? () => openAssets({ filter: 'IN_STORE' }) : undefined}
         />
@@ -1271,7 +1302,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           icon={Wallet}
           tone="amber"
+          meterPct={100}
           trendBadge="100%"
+          trendTitle="Total valuation of all assets in store and in use"
           trendDirection="neutral"
           headline={
             <span className="whitespace-nowrap inline-flex items-baseline">
@@ -1280,31 +1313,27 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
             </span>
           }
           subtext={
-            <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
-              <div className="flex items-center justify-between text-slate-600">
-                <span className="flex items-center gap-1.5">
+            <div className="flex flex-col gap-1 text-[11px]">
+              <div className="flex items-center justify-between gap-2 text-slate-600">
+                <span className="flex items-center gap-1.5 min-w-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700">Fixed</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(ቋሚ)</span>
+                  <span className="font-medium text-slate-700 truncate">Fixed</span>
+                  <span className="text-[10px] text-slate-400 font-normal shrink-0">(ቋሚ)</span>
                 </span>
-                <span className="font-semibold text-slate-800 tabular-nums">
+                <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
                   {formatETBShort(fixedAssets.valueETB)}
-                  <span className="text-[10.5px] text-slate-400 font-normal ml-1">
-                    ({totalValuation > 0 ? Math.round((fixedAssets.valueETB / totalValuation) * 100) : 0}%)
-                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal ml-1">({fixedValPct}%)</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between text-slate-600">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-2 text-slate-600">
+                <span className="flex items-center gap-1.5 min-w-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" aria-hidden />
-                  <span className="font-medium text-slate-700">Consumables</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(አላቂ)</span>
+                  <span className="font-medium text-slate-700 truncate">Consumables</span>
+                  <span className="text-[10px] text-slate-400 font-normal shrink-0">(አላቂ)</span>
                 </span>
-                <span className="font-semibold text-slate-800 tabular-nums">
+                <span className="font-semibold text-slate-800 tabular-nums whitespace-nowrap shrink-0">
                   {formatETBShort(consumables.valueETB)}
-                  <span className="text-[10.5px] text-slate-400 font-normal ml-1">
-                    ({totalValuation > 0 ? Math.round((consumables.valueETB / totalValuation) * 100) : 0}%)
-                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal ml-1">({consValPct}%)</span>
                 </span>
               </div>
             </div>

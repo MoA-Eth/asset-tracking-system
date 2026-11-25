@@ -185,6 +185,8 @@ describe('Total assets', () => {
     // Fixed assets, each unit an asset: 93 assigned + 800 available = 893
     // Both types on Total assets, each in what it is counted in, never added together
     const total = await card('Total assets');
+    expect(within(total).getAllByText('893').filter((el) => !el.closest('.sr-only'))).toHaveLength(1);
+    expect(within(total).getAllByText('312').filter((el) => !el.closest('.sr-only'))).toHaveLength(1);
     expect(within(total).getByRole('row', { name: /Fixed assets/ })).toHaveTextContent('Fixed assets(ቋሚ ንብረቶች)893units');
     expect(within(total).getByRole('row', { name: /Consumables/ })).toHaveTextContent('Consumables(አላቂ ዕቃዎች)312items');
     // Assigned/in use and available, each by type: fixed assets add up (93 + 800 = 893); a partly issued supply is in both
