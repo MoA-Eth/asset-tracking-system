@@ -1199,11 +1199,22 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ ንብረቶች"
           icon={Boxes}
           tone="emerald"
-          trendBadge={totalAssetsTrend?.label ?? '0%'}
-          trendDirection={totalAssetsTrend?.direction ?? 'neutral'}
-          headline={Math.round(fixedAssets.units).toLocaleString()}
-          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
-          tableData={<TypeRows fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
+          trendBadge="100%"
+          trendDirection="neutral"
+          headline={
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
+                {Math.round(fixedAssets.units).toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
+              </span>
+              <span className="text-slate-300 font-light text-base">·</span>
+              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
+                {consumableStockItems.toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
+              </span>
+            </div>
+          }
+          subtext={<TypeRows fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
           footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
@@ -1212,11 +1223,22 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በአገልግሎት ላይ ያሉ ንብረቶች"
           icon={UserCheck}
           tone="sky"
-          trendBadge={assignedAssetsTrend?.label ?? '0%'}
-          trendDirection={assignedAssetsTrend?.direction ?? 'neutral'}
-          headline={Math.round(fixedAssets.issuedUnits).toLocaleString()}
-          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.issuedUnits)} consumables={consumableStockItemsIssued} />}
-          tableData={<TypeRows fixed={Math.round(fixedAssets.issuedUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsIssued} />}
+          trendBadge={`${fixedAssets.units > 0 ? ((fixedAssets.issuedUnits / fixedAssets.units) * 100).toFixed(1) : 0}%`}
+          trendDirection="up"
+          headline={
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
+                {Math.round(fixedAssets.issuedUnits).toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
+              </span>
+              <span className="text-slate-300 font-light text-base">·</span>
+              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
+                {consumableStockItemsIssued.toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
+              </span>
+            </div>
+          }
+          subtext={<TypeRows fixed={Math.round(fixedAssets.issuedUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsIssued} />}
           footer="In use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
         />
@@ -1225,11 +1247,22 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="በመጋዘን ያሉ ንብረቶች"
           icon={Warehouse}
           tone="violet"
-          trendBadge={availableAssetsTrend?.label ?? '0%'}
-          trendDirection={availableAssetsTrend?.direction ?? 'neutral'}
-          headline={Math.round(fixedAssets.inStoreUnits).toLocaleString()}
-          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.inStoreUnits)} consumables={consumableStockItemsInStore} />}
-          tableData={<TypeRows fixed={Math.round(fixedAssets.inStoreUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsInStore} />}
+          trendBadge={`${fixedAssets.units > 0 ? ((fixedAssets.inStoreUnits / fixedAssets.units) * 100).toFixed(1) : 0}%`}
+          trendDirection="neutral"
+          headline={
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl sm:text-2xl 2xl:text-3xl font-black text-slate-900 tracking-tight leading-none tabular-nums">
+                {Math.round(fixedAssets.inStoreUnits).toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-semibold text-sky-600 uppercase tracking-wider">Fixed</span>
+              </span>
+              <span className="text-slate-300 font-light text-base">·</span>
+              <span className="text-base sm:text-lg font-bold text-slate-700 tabular-nums">
+                {consumableStockItemsInStore.toLocaleString()}
+                <span className="ml-1 text-[11px] sm:text-xs font-medium text-violet-500 uppercase tracking-wider">Supplies</span>
+              </span>
+            </div>
+          }
+          subtext={<TypeRows fixed={Math.round(fixedAssets.inStoreUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsInStore} />}
           footer="In store"
           onClick={canOpenAssets ? () => openAssets({ filter: 'IN_STORE' }) : undefined}
         />
@@ -1238,8 +1271,8 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           labelAm="ጠቅላላ የካፒታል ንብረት ዋጋ"
           icon={Wallet}
           tone="amber"
-          trendBadge={totalValuationTrend?.label ?? '0%'}
-          trendDirection={totalValuationTrend?.direction ?? 'neutral'}
+          trendBadge="100%"
+          trendDirection="neutral"
           headline={
             <span className="whitespace-nowrap inline-flex items-baseline">
               <span className="text-xs sm:text-sm font-bold text-slate-400 mr-1 shrink-0">ETB</span>
@@ -1248,8 +1281,32 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           }
           subtext={
             <div className="flex flex-col gap-1 text-[11px] sm:text-xs">
-              <div className="text-slate-700 font-medium truncate">Total asset value</div>
-              <div className="text-[10.5px] text-slate-400 truncate">In store and in use</div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" aria-hidden />
+                  <span className="font-medium text-slate-700">Fixed</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(ቋሚ)</span>
+                </span>
+                <span className="font-semibold text-slate-800 tabular-nums">
+                  {formatETBShort(fixedAssets.valueETB)}
+                  <span className="text-[10.5px] text-slate-400 font-normal ml-1">
+                    ({totalValuation > 0 ? Math.round((fixedAssets.valueETB / totalValuation) * 100) : 0}%)
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" aria-hidden />
+                  <span className="font-medium text-slate-700">Consumables</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(አላቂ)</span>
+                </span>
+                <span className="font-semibold text-slate-800 tabular-nums">
+                  {formatETBShort(consumables.valueETB)}
+                  <span className="text-[10.5px] text-slate-400 font-normal ml-1">
+                    ({totalValuation > 0 ? Math.round((consumables.valueETB / totalValuation) * 100) : 0}%)
+                  </span>
+                </span>
+              </div>
             </div>
           }
           footer="In store and in use"
@@ -1543,19 +1600,28 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                           #{rank + 1}
                         </span>
                         <div className="min-w-0 flex-1">
-                          {canOpenAssets && dept.departmentId ? (
-                            <button
-                              type="button"
-                              onClick={() => openAssets({ department: dept.departmentId })}
-                              title={`Open what ${dept.nameEn || dept.nameAm} holds on the Assets page`}
-                              className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-emerald-700 hover:underline cursor-pointer"
-                            >
-                              {dept.nameEn || dept.nameAm}
-                            </button>
-                          ) : (
-                            <span className="block truncate font-semibold text-slate-800">{dept.nameEn || dept.nameAm}</span>
-                          )}
-                          {dept.nameAm && dept.nameAm !== dept.nameEn && <span className="block text-[10px] text-slate-400">{dept.nameAm}</span>}
+                          {(() => {
+                            const isUnassigned = !dept.departmentId || dept.nameEn?.toLowerCase().trim() === 'unassigned' || dept.nameAm?.toLowerCase().trim() === 'unassigned';
+                            const deptName = isUnassigned ? 'Unallocated / In Store' : (dept.nameEn || dept.nameAm);
+                            const amharicSub = isUnassigned ? 'ያልተመደበ / በመጋዘን ያለ' : (dept.nameAm && dept.nameAm !== dept.nameEn ? dept.nameAm : null);
+                            return (
+                              <>
+                                {canOpenAssets && dept.departmentId && !isUnassigned ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openAssets({ department: dept.departmentId })}
+                                    title={`Open what ${deptName} holds on the Assets page`}
+                                    className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-emerald-700 hover:underline cursor-pointer"
+                                  >
+                                    {deptName}
+                                  </button>
+                                ) : (
+                                  <span className="block truncate font-semibold text-slate-800">{deptName}</span>
+                                )}
+                                {amharicSub && <span className="block text-[10px] text-slate-400">{amharicSub}</span>}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
@@ -1804,7 +1870,7 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
                   {/* Counted as the cards at the top: fixed assets one by one, consumables by the different supplies; each
                       as a part of what is in store (the Available card), so it isn't read against the total or the assigned */}
                   {[
-                    { label: 'Fixed assets (units)', value: (stale.fixedUnits ?? staleMeasures.units).toLocaleString(), of: fixedAssets.inStoreUnits },
+                    { label: 'Fixed assets (units)', value: Math.min(Math.round(Number(stale.fixedUnits ?? staleMeasures.units)), Math.round(fixedAssets.inStoreUnits)).toLocaleString(), of: fixedAssets.inStoreUnits },
                     { label: 'Consumables (items)', value: (stale.consumableItems ?? staleSupplies).toLocaleString(), of: consumableStockItemsInStore },
                     ...(SHOW_VALUES ? [{ label: 'Value', value: formatETBTotal(stale.valueETB), of: undefined }] : []),
                   ].map((s) => (

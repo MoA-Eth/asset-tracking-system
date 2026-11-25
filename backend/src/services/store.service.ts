@@ -5207,10 +5207,15 @@ export class StoreService {
     // (ቋሚ ንብረቶች) are strictly discrete, indivisible property units (whole integer counts).
     // Operational supplies, items in consumable categories, or items with fractional quantities belong to consumables.
     const CONSUMABLE_CATEGORIES: string[] = ['OFFICE_SUPPLIES', 'FUEL_LUBRICANTS', 'OTHER_SUPPLIES', 'VEHICLE_PARTS'];
-    const isFixedAsset = (i: { itemType?: string | null; category?: string | null; quantity?: number }) =>
-      (i.itemType ?? 'FIXED') !== 'CONSUMABLE' &&
-      !CONSUMABLE_CATEGORIES.includes(i.category as string) &&
-      Number.isInteger(unitsOf(i));
+    const isFixedAsset = (i: { itemType?: string | null; category?: string | null; quantity?: number; unitsInStore?: number }) => {
+      const q = i.quantity !== undefined ? i.quantity : i.unitsInStore;
+      return (
+        (i.itemType ?? 'FIXED') !== 'CONSUMABLE' &&
+        !CONSUMABLE_CATEGORIES.includes(i.category as string) &&
+        Number.isInteger(Number(q) || 1) &&
+        (i.unitsInStore === undefined || Number.isInteger(i.unitsInStore))
+      );
+    };
 
     // Same buckets as item balances, so the dashboard, Reports and the lists agree
     const available = allItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
@@ -5234,12 +5239,13 @@ export class StoreService {
     const stockItems = (arr: { ifmisItemCode?: string | null; name?: string | null; uom?: string | null }[]) => new Set(arr.map(stockKey)).size;
 
     const departmentDistribution = departments.map((dept) => {
+      const isUnassigned = !dept.id || dept.code === 'UNASSIGNED' || dept.nameEn?.toLowerCase().trim() === 'unassigned';
       const deptItems = onRecord.filter((i) => i.assignedDepartmentId === dept.id);
       return {
         departmentId: dept.id,
         departmentCode: dept.code,
-        nameEn: dept.nameEn,
-        nameAm: dept.nameAm,
+        nameEn: isUnassigned ? 'Unallocated / In Store' : dept.nameEn,
+        nameAm: isUnassigned ? 'ያልተመደበ / በመጋዘን ያለ' : dept.nameAm,
         itemCount: units(deptItems),
         // Item lines held and the fixed-asset units among them: the units above add up pieces, litres and kilograms
         itemLines: deptItems.length,
@@ -5309,6 +5315,7 @@ export class StoreService {
           name: i.name,
           category: i.category,
           itemType: i.itemType ?? 'FIXED',
+          quantity: i.quantity,
           // Tells one supply from another when counting them
           ifmisItemCode: i.ifmisItemCode,
           unitsInStore: unitsOf(i),
@@ -5644,7 +5651,7 @@ export class StoreService {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,
         // As the dashboard counts: fixed assets one by one, consumables by the different supplies
-        fixedUnits: staleItems.filter(isFixedAsset).reduce((sum, i) => sum + i.unitsInStore, 0),
+        fixedUnits: Math.round(staleItems.filter(isFixedAsset).reduce((sum, i) => sum + i.unitsInStore, 0)),
         consumableItems: stockItems(staleItems.filter((i) => !isFixedAsset(i))),
         units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
         valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
