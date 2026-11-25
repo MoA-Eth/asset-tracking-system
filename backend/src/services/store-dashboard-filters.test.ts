@@ -123,6 +123,22 @@ describe('dashboard filters', () => {
     expect((await dashboard({ itemType: 'CONSUMABLE', storeId: 'S-KAL' })).totalValuationETB).toBe(50 * 100);
   });
 
+  it('strictly counts fractional quantities as consumables, keeping fixed assets as pure integers', async () => {
+    // A legacy intake or consumable entered as FIXED with quantity 0.75 (e.g. oil/cable)
+    const fractionalSupply = item('OIL-075', {
+      category: 'FUEL_LUBRICANTS',
+      itemType: 'FIXED', // incorrectly defaulted or entered as FIXED
+      notes: JSON.stringify({ quantity: 0.75, uom: 'LTR' }),
+    });
+    db.item.findMany.mockResolvedValue([...ITEMS, fractionalSupply]);
+    const d = await dashboard();
+    // Fixed assets must remain strictly whole integers (2 laptops = 2 units)
+    expect(d.fixedAssets.units).toBe(2);
+    expect(Number.isInteger(d.fixedAssets.units)).toBe(true);
+    // Consumables receive the fractional quantity (50 + 0.75 = 50.75)
+    expect(d.consumableCount).toBe(50.75);
+  });
+
   describe('a period', () => {
     // Received in January, still in store: outside an October period, but stale "as of today"
     const OLD = item('OLD-K', { ifmisSlipDateGc: '2026-01-10', createdAtGc: '2026-01-10' });

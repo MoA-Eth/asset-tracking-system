@@ -5203,6 +5203,15 @@ export class StoreService {
     const unitsOf = (i: { quantity?: number }) => Number(i.quantity) || 1;
     const units = (arr: typeof allItems) => arr.reduce((s, i) => s + unitsOf(i), 0);
 
+    // Under Ethiopian government property directives (IFMIS Model 19/20/21/22), fixed capital assets
+    // (ቋሚ ንብረቶች) are strictly discrete, indivisible property units (whole integer counts).
+    // Operational supplies, items in consumable categories, or items with fractional quantities belong to consumables.
+    const CONSUMABLE_CATEGORIES: string[] = ['OFFICE_SUPPLIES', 'FUEL_LUBRICANTS', 'OTHER_SUPPLIES', 'VEHICLE_PARTS'];
+    const isFixedAsset = (i: { itemType?: string | null; category?: string | null; quantity?: number }) =>
+      (i.itemType ?? 'FIXED') !== 'CONSUMABLE' &&
+      !CONSUMABLE_CATEGORIES.includes(i.category as string) &&
+      Number.isInteger(unitsOf(i));
+
     // Same buckets as item balances, so the dashboard, Reports and the lists agree
     const available = allItems.filter((i) => IN_STORE_STATUSES.includes(i.status));
     const issued = allItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status));
@@ -5234,9 +5243,9 @@ export class StoreService {
         itemCount: units(deptItems),
         // Item lines held and the fixed-asset units among them: the units above add up pieces, litres and kilograms
         itemLines: deptItems.length,
-        fixedUnits: units(deptItems.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE')),
+        fixedUnits: units(deptItems.filter(isFixedAsset)),
         // The different supplies it holds (the same item code twice is one), as the dashboard counts consumables
-        consumableItems: stockItems(deptItems.filter((i) => i.itemType === 'CONSUMABLE')),
+        consumableItems: stockItems(deptItems.filter((i) => !isFixedAsset(i))),
         totalValueETB: sum(deptItems),
         availableCount: units(deptItems.filter((i) => IN_STORE_STATUSES.includes(i.status))),
         issuedCount: units(deptItems.filter((i) => WITH_CUSTODIAN_STATUSES.includes(i.status))),
@@ -5248,8 +5257,8 @@ export class StoreService {
     const unassignedItems = onRecord.filter((i) => !i.assignedDepartmentId);
 
     // Fixed capital assets vs operational consumables split
-    const fixedItems = onRecord.filter((i) => (i.itemType ?? 'FIXED') !== 'CONSUMABLE');
-    const consumableItems = onRecord.filter((i) => i.itemType === 'CONSUMABLE');
+    const fixedItems = onRecord.filter(isFixedAsset);
+    const consumableItems = onRecord.filter((i) => !isFixedAsset(i));
     const fixedAssetsCount = units(fixedItems);
     const fixedAssetsValuationETB = sum(fixedItems);
     const consumableCount = units(consumableItems);
@@ -5388,7 +5397,7 @@ export class StoreService {
       const month = (plausibleDate(reg.ifmisSlipDateGc) || reg.createdAtGc || '').slice(0, 7);
       const unitsReceived = unitsOf(reg) + units(scopedItems.filter((c) => c.parentItemId === reg.id && c.status !== ItemStatus.REJECTED));
       receivedByMonth.set(month, (receivedByMonth.get(month) ?? 0) + unitsReceived);
-      if ((reg.itemType ?? 'FIXED') !== 'CONSUMABLE') fixedReceivedByMonth.set(month, (fixedReceivedByMonth.get(month) ?? 0) + unitsReceived);
+      if (isFixedAsset(reg)) fixedReceivedByMonth.set(month, (fixedReceivedByMonth.get(month) ?? 0) + unitsReceived);
     }
     // Issued: each approved Stock-Out by the month it was approved (a partial issue counts its own units)
     const itemsById = scopedById;
@@ -5400,7 +5409,7 @@ export class StoreService {
       const item = itemsById.get(so.itemId);
       const unitsIssued = Number.isFinite(requested) && requested > 0 ? requested : item ? unitsOf(item) : 1;
       issuedByMonth.set(month, (issuedByMonth.get(month) ?? 0) + unitsIssued);
-      if (item && (item.itemType ?? 'FIXED') !== 'CONSUMABLE') fixedIssuedByMonth.set(month, (fixedIssuedByMonth.get(month) ?? 0) + unitsIssued);
+      if (item && isFixedAsset(item)) fixedIssuedByMonth.set(month, (fixedIssuedByMonth.get(month) ?? 0) + unitsIssued);
     }
     const stockMovement = movementMonths.map((month) => ({
       month,
@@ -5635,8 +5644,8 @@ export class StoreService {
         thresholdDays: STALE_IN_STORE_DAYS,
         itemCount: staleItems.length,
         // As the dashboard counts: fixed assets one by one, consumables by the different supplies
-        fixedUnits: staleItems.filter((i) => i.itemType !== 'CONSUMABLE').reduce((sum, i) => sum + i.unitsInStore, 0),
-        consumableItems: stockItems(staleItems.filter((i) => i.itemType === 'CONSUMABLE')),
+        fixedUnits: staleItems.filter(isFixedAsset).reduce((sum, i) => sum + i.unitsInStore, 0),
+        consumableItems: stockItems(staleItems.filter((i) => !isFixedAsset(i))),
         units: staleItems.reduce((sum, i) => sum + i.unitsInStore, 0),
         valueETB: staleItems.reduce((sum, i) => sum + i.valueETB, 0),
         categoryBreakdown: (() => {
@@ -5645,7 +5654,7 @@ export class StoreService {
             const cat = item.category || 'OTHER_SUPPLIES';
             const cur = map.get(cat) || { category: cat, itemCount: 0, fixedUnits: 0, consumableItems: 0, valueETB: 0, maxDaysInStore: 0 };
             cur.itemCount += 1;
-            if (item.itemType === 'CONSUMABLE') {
+            if (!isFixedAsset(item)) {
               cur.consumableItems += 1;
             } else {
               cur.fixedUnits += item.unitsInStore;

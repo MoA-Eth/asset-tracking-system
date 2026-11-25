@@ -1201,9 +1201,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           tone="emerald"
           trendBadge={totalAssetsTrend?.label ?? '0%'}
           trendDirection={totalAssetsTrend?.direction ?? 'neutral'}
-          headline={fixedAssets.units.toLocaleString()}
-          subtext={<BreakdownSubtext fixed={fixedAssets.units} consumables={consumableStockItems} />}
-          tableData={<TypeRows fixed={fixedAssets.units} consumables={consumableStockItems} />}
+          headline={Math.round(fixedAssets.units).toLocaleString()}
+          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
+          tableData={<TypeRows fixed={Math.round(fixedAssets.units)} consumables={consumableStockItems} />}
           footer="In store and in use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ALL' }) : undefined}
         />
@@ -1214,9 +1214,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           tone="sky"
           trendBadge={assignedAssetsTrend?.label ?? '0%'}
           trendDirection={assignedAssetsTrend?.direction ?? 'neutral'}
-          headline={fixedAssets.issuedUnits.toLocaleString()}
-          subtext={<BreakdownSubtext fixed={fixedAssets.issuedUnits} consumables={consumableStockItemsIssued} />}
-          tableData={<TypeRows fixed={fixedAssets.issuedUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsIssued} />}
+          headline={Math.round(fixedAssets.issuedUnits).toLocaleString()}
+          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.issuedUnits)} consumables={consumableStockItemsIssued} />}
+          tableData={<TypeRows fixed={Math.round(fixedAssets.issuedUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsIssued} />}
           footer="In use"
           onClick={canOpenAssets ? () => openAssets({ filter: 'ISSUED' }) : undefined}
         />
@@ -1227,9 +1227,9 @@ export const ExecutiveDashboardPage: React.FC<ExecutiveDashboardPageProps> = ({
           tone="violet"
           trendBadge={availableAssetsTrend?.label ?? '0%'}
           trendDirection={availableAssetsTrend?.direction ?? 'neutral'}
-          headline={fixedAssets.inStoreUnits.toLocaleString()}
-          subtext={<BreakdownSubtext fixed={fixedAssets.inStoreUnits} consumables={consumableStockItemsInStore} />}
-          tableData={<TypeRows fixed={fixedAssets.inStoreUnits} fixedOf={fixedAssets.units} consumables={consumableStockItemsInStore} />}
+          headline={Math.round(fixedAssets.inStoreUnits).toLocaleString()}
+          subtext={<BreakdownSubtext fixed={Math.round(fixedAssets.inStoreUnits)} consumables={consumableStockItemsInStore} />}
+          tableData={<TypeRows fixed={Math.round(fixedAssets.inStoreUnits)} fixedOf={Math.round(fixedAssets.units)} consumables={consumableStockItemsInStore} />}
           footer="In store"
           onClick={canOpenAssets ? () => openAssets({ filter: 'IN_STORE' }) : undefined}
         />
